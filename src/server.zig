@@ -1,13 +1,14 @@
 const std = @import("std");
 const resp = @import("resp.zig");
 const command = @import("command.zig");
-const stream = @import("stream.zig");
+const Stream = @import("stream.zig").Stream;
+const StreamID = @import("stream.zig").StreamID;
 const testing = std.testing;
 
 pub const Server = struct {
     const ValueData = union(enum) {
         value: resp.Value,
-        stream: *stream.Stream,
+        stream: *Stream,
 
         pub fn deinit(self: ValueData, allocator: std.mem.Allocator) void {
             switch (self) {
@@ -262,7 +263,27 @@ pub const Server = struct {
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
         var cmd = try command.XAdd.parse(args, self.allocator);
         defer cmd.deinit(self.allocator);
-
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        var stream: *Stream = undefined;
+        if (self.values.get(cmd.key.string)) |value| {
+            if (value.data != .stream) {
+                try resp.Value.writeErr(w, "'{s}' does not contain a stream", .{cmd.key.string});
+                return;
+            }
+            stream = value.data.stream;
+        } else {
+            stream = try self.allocator.create(Stream);
+            errdefer self.allocator.destroy(stream);
+            stream.* = Stream.init(self.allocator);
+            errdefer stream.deinit();
+            const key = cmd.key.toOwned();
+            errdefer key.deinit(self.allocator);
+            try self.values.put(key.string, .{
+                .data = .{ .stream = stream },
+                .expires = 0,
+            });
+        }
         try resp.Value.writeErr(w, "Not Implemented", .{});
     }
 };

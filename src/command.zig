@@ -42,12 +42,12 @@ pub const Set = struct {
 };
 
 pub const XAdd = struct {
-    key: []const u8,
+    key: resp.Value,
     id: stream.StreamID,
     record: stream.Record,
 
     pub fn deinit(self: XAdd, allocator: std.mem.Allocator) void {
-        allocator.free(self.key);
+        self.key.deinit(allocator);
         self.record.deinit(allocator);
     }
 
@@ -74,7 +74,7 @@ pub const XAdd = struct {
         }
 
         return .{
-            .key = args[0].toOwned().string,
+            .key = args[0].toOwned(),
             .id = id,
             .record = rec,
         };
