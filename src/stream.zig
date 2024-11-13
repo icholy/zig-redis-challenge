@@ -16,7 +16,7 @@ const StreamID = struct {
     fn encode(self: StreamID) [16]u8 {
         var encoded: [16]u8 = undefined;
         std.mem.writeInt(u64, encoded[0..8], self.timestamp, .big);
-        std.mem.writeInt(u64, encoded[8..], self.timestamp, .big);
+        std.mem.writeInt(u64, encoded[8..], self.sequence, .big);
         return encoded;
     }
 };
