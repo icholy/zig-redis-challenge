@@ -21,8 +21,15 @@ const StreamID = struct {
     }
 };
 
-test "StreamID.encode: zero" {
-    try testing.expectEqual([1]u8{0} ** 16, StreamID.encode(.{ .timestamp = 0, .sequence = 0 }));
+test "StreamID.encode: boundary" {
+    try testing.expectEqual(
+        [1]u8{0} ** 16,
+        StreamID.encode(.{ .timestamp = 0, .sequence = 0 }),
+    );
+    try testing.expectEqual(
+        [1]u8{0xFF} ** 16,
+        StreamID.encode(.{ .timestamp = std.math.maxInt(u64), .sequence = std.math.maxInt(u64) }),
+    );
 }
 
 test "StreamID.encode: order" {
