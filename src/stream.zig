@@ -43,6 +43,10 @@ test "StreamID.encode: order" {
             .lo = .{ .timestamp = 1, .sequence = 0 },
             .hi = .{ .timestamp = 1, .sequence = 1 },
         },
+        .{
+            .lo = .{ .timestamp = std.math.maxInt(u64) - 1, .sequence = std.math.maxInt(u64) },
+            .hi = .{ .timestamp = std.math.maxInt(u64), .sequence = 0 },
+        },
     };
     for (tests) |t| {
         const lo = t.lo.encode();
