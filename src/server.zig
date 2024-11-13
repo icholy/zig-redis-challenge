@@ -194,7 +194,7 @@ pub const Server = struct {
                 .value => |value| std.debug.print("VALUE {s} = {any}\n", .{ key, value }),
                 .stream => |stream| {
                     std.debug.print("STREAM {s}\n", .{key});
-                    var it2 = try stream.records.iterator();
+                    var it2 = try stream.tree.iterator();
                     defer it2.deinit();
                     while (try it2.next()) |entry2| {
                         const id = StreamID.decode(entry2.seq[0..16].*);
@@ -397,7 +397,7 @@ pub const Server = struct {
 
     fn streamRead(self: *Server, stream: *Stream, start: ?StreamID, end: ?StreamID) !resp.Value {
         // seek to the start id
-        var it = try stream.records.iterator();
+        var it = try stream.tree.iterator();
         defer it.deinit();
         if (start) |id| {
             const encoded = id.encode();

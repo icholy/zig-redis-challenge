@@ -75,25 +75,25 @@ pub const Record = struct {
 
 pub const Stream = struct {
     last: StreamID,
-    records: RadixTree(Record),
+    tree: RadixTree(Record),
     mutex: std.Thread.Mutex,
 
     pub fn init(allocator: std.mem.Allocator) Stream {
         return .{
-            .records = RadixTree(Record).init(allocator),
+            .tree = RadixTree(Record).init(allocator),
             .last = .{ .timestamp = 0, .sequence = 0 },
             .mutex = .{},
         };
     }
 
     pub fn deinit(self: *Stream) void {
-        self.records.deinit();
+        self.tree.deinit();
     }
 
     pub fn insert(self: *Stream, id: StreamID, rec: Record) !void {
         self.last = id;
         const seq = id.encode();
-        try self.records.insert(&seq, rec);
+        try self.tree.insert(&seq, rec);
     }
 };
 
