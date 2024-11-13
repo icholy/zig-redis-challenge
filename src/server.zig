@@ -301,6 +301,10 @@ pub const Server = struct {
                 .expires = 0,
             });
         }
+        if (cmd.id.timestamp == 0 and cmd.id.sequence == 0) {
+            try resp.Value.writeErr(w, "ERR The ID specified in XADD must be greater than 0-0", .{});
+            return;
+        }
         if (stream.last.order(cmd.id) != .lt) {
             try resp.Value.writeErr(w, "ERR The ID specified in XADD is equal or smaller than the target stream top item", .{});
             return;
