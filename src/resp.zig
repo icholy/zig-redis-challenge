@@ -4,6 +4,7 @@ const testing = std.testing;
 pub const Value = union(enum) {
     simple: []const u8,
     string: []const u8,
+    borrowed_string: []const u8,
     @"error": []const u8,
     array: []Value,
     null_string,
@@ -16,6 +17,7 @@ pub const Value = union(enum) {
                 allocator.free(a);
             },
             .null_string => {},
+            .borrowed_string => {},
         }
     }
 
@@ -48,6 +50,9 @@ pub const Value = union(enum) {
             .null_string => {
                 return .null_string;
             },
+            .borrowed_string => |s| {
+                return .{ .borrowed_string = s };
+            },
         }
     }
 
@@ -56,7 +61,7 @@ pub const Value = union(enum) {
             .simple => |s| {
                 try writer.print("+{s}\r\n", .{s});
             },
-            .string => |s| {
+            .string, .borrowed_string => |s| {
                 try writer.print("${d}\r\n{s}\r\n", .{ s.len, s });
             },
             .array => |a| {
