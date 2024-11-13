@@ -90,3 +90,48 @@ pub const XAdd = struct {
         };
     }
 };
+
+pub const XRange = struct {
+    key: resp.Value,
+    start: stream.StreamID,
+    end: stream.StreamID,
+
+    pub fn deinit(self: XRange, allocator: std.mem.Allocator) void {
+        self.key.deinit(allocator);
+    }
+
+    pub fn parse(args: []resp.Value) !XRange {
+        if (args.len != 3) {
+            return error.InvalidArgs;
+        }
+        for (args) |arg| {
+            if (arg != .string) {
+                return error.InvalidArgs;
+            }
+        }
+        const start = try parseID(args[1].string);
+        const end = try parseID(args[2].string);
+        return .{
+            .key = args[0].toOwned(),
+            .start = start,
+            .end = end,
+        };
+    }
+
+    pub fn parseID(input: []const u8) !stream.StreamID {
+        const parsed = stream.StreamID.parse(input) orelse {
+            const timestamp = try std.fmt.parseInt(u64, input, 10);
+            return .{
+                .timestamp = timestamp,
+                .sequence = 0,
+            };
+        };
+        if (parsed.timestamp == null or parsed.sequence == null) {
+            return error.InvalidArgs;
+        }
+        return .{
+            .timestamp = parsed.timestamp.?,
+            .sequence = parsed.sequence.?,
+        };
+    }
+};
