@@ -88,14 +88,25 @@ pub const Stream = struct {
         };
     }
 
+    // you must hold the mutex to call this method.
+    pub fn block(self: *Stream, id: StreamID, timeout_ns: u64) !void {
+        const deadline = std.time.nanoTimestamp() + timeout_ns;
+        while (self.last.order(id) == .lt) {
+            const remaining_timeout_ns = deadline - std.time.nanoTimestamp();
+            self.condition.timedWait(&self.mutex, remaining_timeout_ns);
+        }
+    }
+
     pub fn deinit(self: *Stream) void {
         self.tree.deinit();
     }
 
+    // you must hold the mutex to call this method.
     pub fn insert(self: *Stream, id: StreamID, rec: Record) !void {
         self.last = id;
         const seq = id.encode();
         try self.tree.insert(&seq, rec);
+        self.condition.broadcast();
     }
 };
 
