@@ -44,11 +44,21 @@ pub const Set = struct {
 pub const XAdd = struct {
     key: resp.Value,
     id: stream.StreamID,
-    record: stream.Record,
+    record: ?stream.Record,
 
     pub fn deinit(self: XAdd, allocator: std.mem.Allocator) void {
         self.key.deinit(allocator);
-        self.record.deinit(allocator);
+        if (self.record) |rec| {
+            rec.deinit(allocator);
+        }
+    }
+
+    pub fn toOwnedRecord(self: *XAdd) ?stream.Record {
+        if (self.record) |rec| {
+            self.record = null;
+            return rec;
+        }
+        return null;
     }
 
     pub fn parse(args: []resp.Value, allocator: std.mem.Allocator) !XAdd {
