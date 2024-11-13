@@ -1,6 +1,7 @@
 const std = @import("std");
 const resp = @import("resp.zig");
 const stream = @import("stream.zig");
+const util = @import("util.zig");
 const testing = std.testing;
 
 pub const Set = struct {
@@ -32,10 +33,10 @@ pub const Set = struct {
         if (unit != .string or ttl != .string) {
             return error.InvalidArgs;
         }
-        if (std.mem.eql(u8, unit.string, "EX") or std.mem.eql(u8, unit.string, "ex")) {
+        if (util.ieql(unit.string, "EX")) {
             return (try std.fmt.parseInt(u64, ttl.string, 10)) * 1000;
         }
-        if (std.mem.eql(u8, unit.string, "PX") or std.mem.eql(u8, unit.string, "px")) {
+        if (util.ieql(unit.string, "PX")) {
             return (try std.fmt.parseInt(u64, ttl.string, 10));
         }
         return error.InvalidArgs;
@@ -161,7 +162,7 @@ pub const XRead = struct {
                 return error.InvalidArgs;
             }
         }
-        if (!std.mem.eql(u8, args[0].string, "streams")) {
+        if (!util.ieql(args[0].string, "STREAMS")) {
             return error.InvalidArgs;
         }
         return .{ .ops = try parseOps(args[1..], allocator) };

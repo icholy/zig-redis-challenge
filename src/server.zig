@@ -1,5 +1,6 @@
 const std = @import("std");
 const resp = @import("resp.zig");
+const util = @import("util.zig");
 const command = @import("command.zig");
 const Stream = @import("stream.zig").Stream;
 const StreamID = @import("stream.zig").StreamID;
@@ -213,7 +214,7 @@ pub const Server = struct {
         if (args.len != 2 or args[0] != .string or args[1] != .string) {
             return error.InvalidArgs;
         }
-        if (std.mem.eql(u8, args[0].string, "GET")) {
+        if (util.ieql(args[0].string, "GET")) {
             return self.onConfigGet(w, args[1].string);
         }
         try resp.Value.writeErr(w, "Not implemented", .{});
