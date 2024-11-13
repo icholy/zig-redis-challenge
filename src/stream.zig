@@ -3,8 +3,8 @@ const testing = std.testing;
 const RadixTree = @import("radixtree.zig").RadixTree;
 
 pub const StreamID = struct {
-    timestamp: u64,
-    sequence: u64,
+    timestamp: ?u64,
+    sequence: ?u64,
 
     pub fn decode(encoded: [16]u8) StreamID {
         return .{
@@ -15,17 +15,17 @@ pub const StreamID = struct {
 
     pub fn encode(self: StreamID) [16]u8 {
         var encoded: [16]u8 = undefined;
-        std.mem.writeInt(u64, encoded[0..8], self.timestamp, .big);
-        std.mem.writeInt(u64, encoded[8..], self.sequence, .big);
+        std.mem.writeInt(u64, encoded[0..8], self.timestamp.?, .big);
+        std.mem.writeInt(u64, encoded[8..], self.sequence.?, .big);
         return encoded;
     }
 
     pub fn order(self: StreamID, other: StreamID) std.math.Order {
-        const ord = std.math.order(self.timestamp, other.timestamp);
+        const ord = std.math.order(self.timestamp.?, other.timestamp.?);
         if (ord != .eq) {
             return ord;
         }
-        return std.math.order(self.sequence, other.sequence);
+        return std.math.order(self.sequence.?, other.sequence.?);
     }
 
     pub fn parse(input: []const u8) !StreamID {
