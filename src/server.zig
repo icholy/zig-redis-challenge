@@ -278,10 +278,12 @@ pub const Server = struct {
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
+        // parse the command
         var cmd = try command.XAdd.parse(args, self.allocator);
         defer cmd.deinit(self.allocator);
         self.mutex.lock();
         defer self.mutex.unlock();
+        // create the stream if it doesn't exist
         var stream: *Stream = undefined;
         if (self.values.get(cmd.key.string)) |value| {
             if (value.data != .stream) {
@@ -301,6 +303,7 @@ pub const Server = struct {
                 .expires = 0,
             });
         }
+        // parse the id
         var id = .{
             .timestamp = cmd.id.timestamp orelse 0,
             .sequence = cmd.id.sequence orelse 0,
@@ -319,10 +322,14 @@ pub const Server = struct {
             try resp.Value.writeErr(w, "ERR The ID specified in XADD is equal or smaller than the target stream top item", .{});
             return;
         }
+        // insert the entry
         const rec = cmd.toOwnedRecord() orelse StreamRecord.init(self.allocator);
         errdefer rec.deinit(self.allocator);
         try stream.insert(id, rec);
-        try args[1].write(w);
+        // return the generated id
+        const formatted_id = try std.fmt.allocPrint(self.allocator, "{d}-{d}", .{ id.timestamp, id.sequence });
+        defer self.allocator.free(formatted_id);
+        try resp.Value.write(.{ .string = formatted_id });
     }
 };
 
