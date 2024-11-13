@@ -329,7 +329,7 @@ pub const Server = struct {
         // return the generated id
         const formatted_id = try std.fmt.allocPrint(self.allocator, "{d}-{d}", .{ id.timestamp, id.sequence });
         defer self.allocator.free(formatted_id);
-        try resp.Value.write(.{ .string = formatted_id });
+        try resp.Value.write(.{ .string = formatted_id }, w);
     }
 };
 
