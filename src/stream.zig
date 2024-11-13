@@ -2,7 +2,7 @@ const std = @import("std");
 const testing = std.testing;
 const RadixTree = @import("radixtree.zig").RadixTree;
 
-const StreamID = struct {
+pub const StreamID = struct {
     timestamp: u64,
     sequence: u64,
 
@@ -18,6 +18,46 @@ const StreamID = struct {
         std.mem.writeInt(u64, encoded[0..8], self.timestamp, .big);
         std.mem.writeInt(u64, encoded[8..], self.sequence, .big);
         return encoded;
+    }
+};
+
+pub const Record = struct {
+    pub const Pair = struct {
+        key: []const u8,
+        value: []const u8,
+    };
+
+    pairs: std.ArrayList(Pair),
+
+    pub fn init(allocator: std.mem.Allocator) Record {
+        return .{
+            .pairs = std.ArrayList(Pair).init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *Record) void {
+        self.pairs.deinit();
+    }
+};
+
+pub const Stream = struct {
+    records: RadixTree(Record),
+
+    pub fn init(allocator: std.mem.Allocator) Stream {
+        return .{
+            .records = RadixTree(Record).init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *Stream) void {
+        self.records.deinit();
+    }
+
+    pub fn insert(self: *Stream, id: StreamID, rec: *Record) !void {
+        _ = self;
+        _ = id;
+        _ = rec;
+        return error.NotImplemented;
     }
 };
 
@@ -60,4 +100,12 @@ test "StreamID.encode: order" {
         const hi = t.hi.encode();
         try testing.expectEqual(std.mem.order(u8, &lo, &hi), .lt);
     }
+}
+
+test "Stream.insert" {
+    var stream = Stream.init(testing.allocator);
+    defer stream.deinit();
+    var rec = Record.init(testing.allocator);
+    defer rec.deinit();
+    try stream.insert(.{ .timestamp = 1, .sequence = 0 }, &rec);
 }
