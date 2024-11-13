@@ -48,7 +48,7 @@ pub const XAdd = struct {
 
     pub fn deinit(self: XAdd, allocator: std.mem.Allocator) void {
         allocator.free(self.key);
-        self.record.deinit();
+        self.record.deinit(allocator);
     }
 
     pub fn parse(args: []resp.Value, allocator: std.mem.Allocator) !XAdd {

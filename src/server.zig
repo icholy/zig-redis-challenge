@@ -260,8 +260,9 @@ pub const Server = struct {
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
-        const cmd = try command.XAdd.parse(args, self.allocator);
-        _ = cmd;
+        var cmd = try command.XAdd.parse(args, self.allocator);
+        defer cmd.deinit(self.allocator);
+
         try resp.Value.writeErr(w, "Not Implemented", .{});
     }
 };
