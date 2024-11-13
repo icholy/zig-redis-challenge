@@ -358,8 +358,21 @@ pub const Server = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
         var outputs = std.ArrayList(resp.Value).init(self.allocator);
-        defer outputs.deinit();
-        try resp.Value.writeErr(w, "Not implemented", .{});
+        defer {
+            for (outputs.items) |v| {
+                v.deinit(self.allocator);
+            }
+            outputs.deinit();
+        }
+        cmd.start.sequence += 1;
+        for (cmd.keys) |key| {
+            const output = try resp.Value.initArray(self.allocator, 2);
+            errdefer output.deinit(self.allocator);
+            output.array[0] = .{ .borrowed_string = key.string };
+            output.array[1] = try self.streamRead(key.string, cmd.start, null);
+            try outputs.append(output);
+        }
+        try resp.Value.write(.{ .array = outputs.items }, w);
     }
 
     fn streamRead(self: *Server, key: []const u8, start: ?StreamID, end: ?StreamID) !resp.Value {
