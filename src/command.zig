@@ -164,6 +164,10 @@ pub const XRead = struct {
         if (!std.mem.eql(u8, args[0].string, "streams")) {
             return error.InvalidArgs;
         }
+        return .{ .ops = try parseOps(args[1..], allocator) };
+    }
+
+    fn parseOps(args: []resp.Value, allocator: std.mem.Allocator) ![]ReadOp {
         var ops = std.ArrayList(ReadOp).init(allocator);
         defer ops.deinit();
         errdefer {
@@ -171,22 +175,21 @@ pub const XRead = struct {
                 op.key.deinit(allocator);
             }
         }
-        const op_args = args[1..];
-        const n_op = op_args.len / 2;
+        const n_op = args.len / 2;
         for (0..n_op) |i| {
-            const start = try stream.StreamID.parse(op_args[i + n_op].string);
+            const start = try stream.StreamID.parse(args[i + n_op].string);
             if (start.timestamp == null or start.sequence == null) {
                 return error.InvalidStreamID;
             }
             try ops.append(.{
-                .key = op_args[i].toOwned(),
+                .key = args[i].toOwned(),
                 .start = .{
                     .timestamp = start.timestamp.?,
                     .sequence = start.sequence.?,
                 },
             });
         }
-        return .{ .ops = try ops.toOwnedSlice() };
+        return try ops.toOwnedSlice();
     }
 };
 
