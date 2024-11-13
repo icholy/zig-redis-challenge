@@ -289,28 +289,10 @@ pub const Server = struct {
         // parse the command
         var cmd = try command.XAdd.parse(args, self.allocator);
         defer cmd.deinit(self.allocator);
-        self.mutex.lock();
-        defer self.mutex.unlock();
         // create the stream if it doesn't exist
-        var stream: *Stream = undefined;
-        if (self.values.get(cmd.key.string)) |value| {
-            if (value.data != .stream) {
-                try resp.Value.writeErr(w, "'{s}' does not contain a stream", .{cmd.key.string});
-                return;
-            }
-            stream = value.data.stream;
-        } else {
-            stream = try self.allocator.create(Stream);
-            errdefer self.allocator.destroy(stream);
-            stream.* = Stream.init(self.allocator);
-            errdefer stream.deinit();
-            const key = cmd.key.toOwned();
-            errdefer key.deinit(self.allocator);
-            try self.values.put(key.string, .{
-                .data = .{ .stream = stream },
-                .expires = 0,
-            });
-        }
+        const stream = try self.getStream(cmd.key.string, true);
+        stream.mutex.lock();
+        defer stream.mutex.unlock();
         // parse the id
         var id = .{
             .timestamp = cmd.id.timestamp orelse 0,
@@ -345,9 +327,10 @@ pub const Server = struct {
         const cmd = try command.XRange.parse(args);
         defer cmd.deinit(self.allocator);
         // get the steam
-        self.mutex.lock();
-        defer self.mutex.unlock();
-        const output = try self.streamRead(cmd.key.string, cmd.start, cmd.end);
+        const stream = try self.getStream(cmd.key.string, false);
+        stream.mutex.lock();
+        defer stream.mutex.unlock();
+        const output = try self.streamRead(stream, cmd.start, cmd.end);
         defer output.deinit(self.allocator);
         return output.write(w);
     }
@@ -355,8 +338,6 @@ pub const Server = struct {
     fn onXRead(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
         var cmd = try command.XRead.parse(args, self.allocator);
         defer cmd.deinit(self.allocator);
-        self.mutex.lock();
-        defer self.mutex.unlock();
         var outputs = std.ArrayList(resp.Value).init(self.allocator);
         defer {
             for (outputs.items) |v| {
@@ -364,25 +345,56 @@ pub const Server = struct {
             }
             outputs.deinit();
         }
+        var streams = std.ArrayList(*Stream).init(self.allocator);
+        defer {
+            for (streams.items) |stream| {
+                stream.mutex.unlock();
+            }
+            streams.deinit();
+        }
         for (cmd.ops) |*op| {
             op.start.sequence += 1;
+
+            const stream = try self.getStream(op.key.string, false);
+            try streams.append(stream);
+            stream.mutex.lock();
+
             const output = try resp.Value.initArray(self.allocator, 2);
             errdefer output.deinit(self.allocator);
             output.array[0] = .{ .borrowed_string = op.key.string };
-            output.array[1] = try self.streamRead(op.key.string, op.start, null);
+            output.array[1] = try self.streamRead(stream, op.start, null);
             try outputs.append(output);
         }
         try resp.Value.write(.{ .array = outputs.items }, w);
     }
 
-    fn streamRead(self: *Server, key: []const u8, start: ?StreamID, end: ?StreamID) !resp.Value {
-        const value = self.values.get(key) orelse {
-            return error.InvalidKey;
-        };
-        if (value.data != .stream) {
-            return error.InvalidKey;
+    fn getStream(self: *Server, key: []const u8, create: bool) !*Stream {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        // create the stream if it doesn't exist
+        if (self.values.get(key)) |value| {
+            if (value.data != .stream) {
+                return error.StreamNotFound;
+            }
+            return value.data.stream;
         }
-        const stream: *Stream = value.data.stream;
+        if (!create) {
+            return error.StreamNotFound;
+        }
+        var stream = try self.allocator.create(Stream);
+        errdefer self.allocator.destroy(stream);
+        stream.* = Stream.init(self.allocator);
+        errdefer stream.deinit();
+        const key_dup = try self.allocator.dupe(u8, key);
+        errdefer self.allocator.free(key_dup);
+        try self.values.put(key_dup, .{
+            .data = .{ .stream = stream },
+            .expires = 0,
+        });
+        return stream;
+    }
+
+    fn streamRead(self: *Server, stream: *Stream, start: ?StreamID, end: ?StreamID) !resp.Value {
         // seek to the start id
         var it = try stream.records.iterator();
         defer it.deinit();

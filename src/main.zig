@@ -7,7 +7,8 @@ const resp = @import("resp.zig");
 
 pub fn main() !void {
     var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
-    const allocator = gpa.allocator();
+    var tsa = std.heap.ThreadSafeAllocator{ .child_allocator = gpa.allocator() };
+    const allocator = tsa.allocator();
 
     var config: Server.Config = .{};
     var args = std.process.args();
