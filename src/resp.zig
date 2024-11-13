@@ -4,10 +4,10 @@ const testing = std.testing;
 pub const Value = union(enum) {
     simple: []const u8,
     string: []const u8,
-    borrowed_string: []const u8,
     @"error": []const u8,
     array: []Value,
     null_string,
+    borrowed: *Value,
 
     pub fn deinit(self: Value, allocator: std.mem.Allocator) void {
         switch (self) {
@@ -17,7 +17,7 @@ pub const Value = union(enum) {
                 allocator.free(a);
             },
             .null_string => {},
-            .borrowed_string => {},
+            .borrowed => {},
         }
     }
 
@@ -50,8 +50,8 @@ pub const Value = union(enum) {
             .null_string => {
                 return .null_string;
             },
-            .borrowed_string => |s| {
-                return .{ .borrowed_string = s };
+            .borrowed => |v| {
+                return v.toOwned();
             },
         }
     }
@@ -61,7 +61,7 @@ pub const Value = union(enum) {
             .simple => |s| {
                 try writer.print("+{s}\r\n", .{s});
             },
-            .string, .borrowed_string => |s| {
+            .string => |s| {
                 try writer.print("${d}\r\n{s}\r\n", .{ s.len, s });
             },
             .array => |a| {
@@ -75,6 +75,9 @@ pub const Value = union(enum) {
             },
             .@"error" => |e| {
                 try writeErr(writer, "{s}", .{e});
+            },
+            .borrowed => |v| {
+                try v.write(writer);
             },
         }
     }
