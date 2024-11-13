@@ -191,6 +191,18 @@ pub const Request = struct {
             .args = raw.array[1..],
         };
     }
+
+    pub fn is(self: Request, name: []const u8) bool {
+        if (name.len != self.name.len) {
+            return false;
+        }
+        for (name, self.name) |c1, c2| {
+            if (std.ascii.toUpper(c1) != std.ascii.toUpper(c2)) {
+                return false;
+            }
+        }
+        return true;
+    }
 };
 
 test "Value.readLine" {

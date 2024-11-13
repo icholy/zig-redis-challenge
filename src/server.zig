@@ -76,37 +76,37 @@ pub const Server = struct {
     }
 
     fn handle(self: *Server, req: resp.Request, w: std.io.AnyWriter) !void {
-        if (std.mem.eql(u8, req.name, "COMMAND")) {
+        if (req.is("COMMAND")) {
             return self.onCommand(w);
         }
-        if (std.mem.eql(u8, req.name, "PING")) {
+        if (req.is("PING")) {
             return self.onPing(w);
         }
-        if (std.mem.eql(u8, req.name, "ECHO")) {
+        if (req.is("ECHO")) {
             return self.onEcho(w, req.args);
         }
-        if (std.mem.eql(u8, req.name, "SET")) {
+        if (req.is("SET")) {
             return self.onSet(w, req.args);
         }
-        if (std.mem.eql(u8, req.name, "GET")) {
+        if (req.is("GET")) {
             return self.onGet(w, req.args);
         }
-        if (std.mem.eql(u8, req.name, "DUMP")) {
+        if (req.is("DUMP")) {
             return self.onDump(w);
         }
-        if (std.mem.eql(u8, req.name, "CONFIG")) {
+        if (req.is("CONFIG")) {
             return self.onConfig(w, req.args);
         }
-        if (std.mem.eql(u8, req.name, "KEYS")) {
+        if (req.is("KEYS")) {
             return self.onKeys(w, req.args);
         }
-        if (std.mem.eql(u8, req.name, "TYPE")) {
+        if (req.is("TYPE")) {
             return self.onType(w, req.args);
         }
-        if (std.mem.eql(u8, req.name, "XADD")) {
+        if (req.is("XADD")) {
             return self.onXAdd(w, req.args);
         }
-        if (std.mem.eql(u8, req.name, "XRANGE")) {
+        if (req.is("XRANGE")) {
             return self.onXRange(w, req.args);
         }
         try resp.Value.writeErr(w, "ERR: unrecognised command: {s}", .{req.name});
