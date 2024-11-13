@@ -3,7 +3,7 @@ const testing = std.testing;
 const RadixTree = @import("radixtree.zig").RadixTree;
 
 pub const StreamID = struct {
-    const Parsed = struct {
+    pub const Parsed = struct {
         timestamp: ?u64,
         sequence: ?u64,
     };

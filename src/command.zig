@@ -43,7 +43,7 @@ pub const Set = struct {
 
 pub const XAdd = struct {
     key: resp.Value,
-    id: stream.StreamID,
+    id: stream.StreamID.Parsed,
     record: ?stream.Record,
 
     pub fn deinit(self: XAdd, allocator: std.mem.Allocator) void {
