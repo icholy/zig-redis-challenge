@@ -4,8 +4,18 @@ const command = @import("command.zig");
 const testing = std.testing;
 
 pub const Server = struct {
+    const ValueData = union(enum) {
+        value: resp.Value,
+
+        pub fn deinit(self: ValueData, allocator: std.mem.Allocator) void {
+            switch (self) {
+                .value => |v| v.deinit(allocator),
+            }
+        }
+    };
+
     const Value = struct {
-        data: resp.Value,
+        data: ValueData,
         expires: u64,
     };
 
@@ -116,7 +126,7 @@ pub const Server = struct {
             }
             const prev = try self.values.fetchPut(cmd.key, .{
                 .expires = expires,
-                .data = cmd.value,
+                .data = .{ .value = cmd.value },
             });
             if (prev) |kv| {
                 self.allocator.free(kv.key);
@@ -143,11 +153,15 @@ pub const Server = struct {
             try resp.Value.write(.null_string, w);
             return;
         }
-        if (value.data != .string) {
-            try resp.Value.writeErr(w, "only strings are supported", .{});
-            return;
+        switch (value.data) {
+            .value => |v| {
+                if (v != .string) {
+                    try resp.Value.writeErr(w, "only strings are supported", .{});
+                    return;
+                }
+                try v.write(w);
+            },
         }
-        try value.data.write(w);
     }
 
     fn onDump(self: *Server, w: std.io.AnyWriter) !void {
