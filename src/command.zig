@@ -156,14 +156,23 @@ pub const XRead = struct {
                 return error.InvalidArgs;
             }
         }
-        if (!std.mem.eql(u8, args[0], "streams")) {
+        if (!std.mem.eql(u8, args[0].string, "streams")) {
             return error.InvalidArgs;
         }
         const start = try stream.StreamID.parse(args[1].string);
+        if (start.timestamp == null or start.sequence == null) {
+            return error.InvalidStreamID;
+        }
         const keys = try allocator.alloc(resp.Value, args.len - 2);
         for (args[2..], 0..) |*v, i| {
             keys[i] = v.toOwned();
         }
-        return .{ .keys = keys, .start = start };
+        return .{
+            .keys = keys,
+            .start = .{
+                .timestamp = start.timestamp.?,
+                .sequence = start.sequence.?,
+            },
+        };
     }
 };

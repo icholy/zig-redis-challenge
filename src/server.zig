@@ -359,7 +359,7 @@ pub const Server = struct {
         defer self.mutex.unlock();
         var outputs = std.ArrayList(resp.Value).init(self.allocator);
         defer outputs.deinit();
-        try w.write("-Test\r\n");
+        try resp.Value.writeErr(w, "Not implemented", .{});
     }
 
     fn streamRead(self: *Server, key: []const u8, start: ?StreamID, end: ?StreamID) !resp.Value {
