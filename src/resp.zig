@@ -19,6 +19,14 @@ pub const Value = union(enum) {
         }
     }
 
+    // pub fn initArray(allocator: std.mem.Allocator, n: usize) !Value {
+    //     var array = try allocator.alloc(Value, n);
+    //     for (0..array.len) |i| {
+    //         array[i] = .null_string;
+    //     }
+    //     return .{ .array = array };
+    // }
+    //
     pub fn toOwned(self: *Value) Value {
         switch (self.*) {
             .simple => |s| {
