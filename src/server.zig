@@ -341,7 +341,6 @@ pub const Server = struct {
         // parse the request
         const cmd = try command.XRange.parse(args);
         defer cmd.deinit(self.allocator);
-        try resp.Value.writeErr(w, "Not Implemented", .{});
         // get the steam
         self.mutex.lock();
         defer self.mutex.unlock();
