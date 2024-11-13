@@ -364,12 +364,12 @@ pub const Server = struct {
             }
             outputs.deinit();
         }
-        cmd.start.sequence += 1;
-        for (cmd.keys) |key| {
+        for (cmd.ops) |*op| {
+            op.start.sequence += 1;
             const output = try resp.Value.initArray(self.allocator, 2);
             errdefer output.deinit(self.allocator);
-            output.array[0] = .{ .borrowed_string = key.string };
-            output.array[1] = try self.streamRead(key.string, cmd.start, null);
+            output.array[0] = .{ .borrowed_string = op.key.string };
+            output.array[1] = try self.streamRead(op.key.string, op.start, null);
             try outputs.append(output);
         }
         try resp.Value.write(.{ .array = outputs.items }, w);

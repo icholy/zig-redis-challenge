@@ -137,18 +137,22 @@ pub const XRange = struct {
 };
 
 pub const XRead = struct {
-    keys: []resp.Value,
-    start: stream.StreamID,
+    const ReadOp = struct {
+        key: resp.Value,
+        start: stream.StreamID,
+    };
+
+    ops: []ReadOp,
 
     pub fn deinit(self: XRead, allocator: std.mem.Allocator) void {
-        for (self.keys) |key| {
-            key.deinit(allocator);
+        for (self.ops) |op| {
+            op.key.deinit(allocator);
         }
-        allocator.free(self.keys);
+        allocator.free(self.ops);
     }
 
     pub fn parse(args: []resp.Value, allocator: std.mem.Allocator) !XRead {
-        if (args.len < 3) {
+        if (args.len < 3 or (args.len - 1) % 2 != 0) {
             return error.InvalidArgs;
         }
         for (args) |arg| {
@@ -159,20 +163,28 @@ pub const XRead = struct {
         if (!std.mem.eql(u8, args[0].string, "streams")) {
             return error.InvalidArgs;
         }
-        const start = try stream.StreamID.parse(args[args.len - 1].string);
-        if (start.timestamp == null or start.sequence == null) {
-            return error.InvalidStreamID;
+        var ops = std.ArrayList(ReadOp).init(allocator);
+        defer ops.deinit();
+        errdefer {
+            for (ops.items) |op| {
+                op.key.deinit(allocator);
+            }
         }
-        const keys = try allocator.alloc(resp.Value, args.len - 2);
-        for (args[1 .. args.len - 1], 0..) |*v, i| {
-            keys[i] = v.toOwned();
+        const op_args = args[1..];
+        const n_op = op_args.len / 2;
+        for (0..n_op) |i| {
+            const start = try stream.StreamID.parse(op_args[i + n_op].string);
+            if (start.timestamp == null or start.sequence == null) {
+                return error.InvalidStreamID;
+            }
+            try ops.append(.{
+                .key = op_args[i].toOwned(),
+                .start = .{
+                    .timestamp = start.timestamp.?,
+                    .sequence = start.sequence.?,
+                },
+            });
         }
-        return .{
-            .keys = keys,
-            .start = .{
-                .timestamp = start.timestamp.?,
-                .sequence = start.sequence.?,
-            },
-        };
+        return .{ .ops = try ops.toOwnedSlice() };
     }
 };
