@@ -20,7 +20,7 @@ pub const StreamID = struct {
         return encoded;
     }
 
-    fn parse(input: []const u8) !StreamID {
+    pub fn parse(input: []const u8) !StreamID {
         const index = std.mem.indexOf(u8, input, "-") orelse {
             // no sequence number
             return .{

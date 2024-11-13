@@ -66,8 +66,8 @@ pub const XAdd = struct {
 
         var i: usize = 2;
         while (i < args.len) : (i += 2) {
-            const key = args[i];
-            const value = args[i + 1];
+            const key = &args[i];
+            const value = &args[i + 1];
             try rec.pairs.append(.{ .key = key.string, .value = value.string });
             _ = key.toOwned();
             _ = value.toOwned();
