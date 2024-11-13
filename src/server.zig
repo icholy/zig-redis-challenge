@@ -109,6 +109,9 @@ pub const Server = struct {
         if (req.is("XRANGE")) {
             return self.onXRange(w, req.args);
         }
+        if (req.is("XREAD")) {
+            return self.onXRead(w, req.args);
+        }
         try resp.Value.writeErr(w, "ERR: unrecognised command: {s}", .{req.name});
     }
 
@@ -347,6 +350,16 @@ pub const Server = struct {
         const output = try self.streamRead(cmd.key.string, cmd.start, cmd.end);
         defer output.deinit(self.allocator);
         return output.write(w);
+    }
+
+    fn onXRead(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
+        const cmd = try command.XRead.parse(args, self.allocator);
+        defer cmd.deinit(self.allocator);
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        var outputs = std.ArrayList(resp.Value).init(self.allocator);
+        defer outputs.deinit();
+        try w.write("-Test\r\n");
     }
 
     fn streamRead(self: *Server, key: []const u8, start: ?StreamID, end: ?StreamID) !resp.Value {
