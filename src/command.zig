@@ -90,8 +90,8 @@ pub const XAdd = struct {
 
 pub const XRange = struct {
     key: resp.Value,
-    start: stream.StreamID,
-    end: stream.StreamID,
+    start: ?stream.StreamID,
+    end: ?stream.StreamID,
 
     pub fn deinit(self: XRange, allocator: std.mem.Allocator) void {
         self.key.deinit(allocator);
@@ -115,7 +115,10 @@ pub const XRange = struct {
         };
     }
 
-    fn parseID(input: []const u8) !stream.StreamID {
+    fn parseID(input: []const u8) !?stream.StreamID {
+        if (std.mem.eql(u8, input, "+") or std.mem.eql(u8, input, "-")) {
+            return null;
+        }
         const parsed = stream.StreamID.parse(input) catch {
             const timestamp = try std.fmt.parseInt(u64, input, 10);
             return .{

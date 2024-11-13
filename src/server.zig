@@ -356,9 +356,12 @@ pub const Server = struct {
         // seek to the start id
         var it = try stream.records.iterator();
         defer it.deinit();
-        const start = cmd.start.encode();
-        try it.seek(&start);
-
+        if (cmd.start) |start| {
+            const encoded = start.encode();
+            try it.seek(&encoded);
+        }
+        const end = cmd.end orelse stream.last;
+        // iterate throug the values and build up the response array
         var entries = std.ArrayList(resp.Value).init(self.allocator);
         defer {
             for (entries.items) |v| {
@@ -366,10 +369,9 @@ pub const Server = struct {
             }
             entries.deinit();
         }
-
         while (try it.next()) |entry| {
             const id = StreamID.decode(entry.seq[0..16].*);
-            if (id.order(cmd.end) == .gt) {
+            if (id.order(end) == .gt) {
                 break;
             }
             var resp_entry = try resp.Value.initArray(self.allocator, 2);
@@ -378,7 +380,7 @@ pub const Server = struct {
             resp_entry.array[1] = .{ .borrowed_array = entry.value.data.items };
             try entries.append(resp_entry);
         }
-
+        // write out the response
         return resp.Value.write(.{ .array = entries.items }, w);
     }
 };
