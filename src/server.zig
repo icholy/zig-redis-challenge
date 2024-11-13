@@ -302,7 +302,7 @@ pub const Server = struct {
             });
         }
         if (stream.last.order(cmd.id) != .lt) {
-            try resp.Value.writeErr(w, "id must be greater than top", .{});
+            try resp.Value.writeErr(w, "ERR The ID specified in XADD is equal or smaller than the target stream top item", .{});
             return;
         }
         const rec = cmd.toOwnedRecord() orelse StreamRecord.init(self.allocator);
