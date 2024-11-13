@@ -301,6 +301,10 @@ pub const Server = struct {
                 .expires = 0,
             });
         }
+        if (stream.last.order(cmd.id) != .lt) {
+            try resp.Value.writeErr(w, "id must be greater than top", .{});
+            return;
+        }
         const rec = cmd.toOwnedRecord() orelse StreamRecord.init(self.allocator);
         errdefer rec.deinit(self.allocator);
         try stream.insert(cmd.id, rec);

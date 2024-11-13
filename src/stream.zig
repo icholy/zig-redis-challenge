@@ -20,6 +20,14 @@ pub const StreamID = struct {
         return encoded;
     }
 
+    pub fn order(self: StreamID, other: StreamID) std.math.Order {
+        const ord = std.math.order(self.timestamp, other.timestamp);
+        if (ord != .eq) {
+            return ord;
+        }
+        return std.math.order(self.sequence, other.sequence);
+    }
+
     pub fn parse(input: []const u8) !StreamID {
         const index = std.mem.indexOf(u8, input, "-") orelse {
             // no sequence number
