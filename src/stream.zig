@@ -30,10 +30,20 @@ test "StreamID.encode: order" {
         lo: StreamID,
         hi: StreamID,
     };
-    const tests = [_]Test{.{
-        .lo = .{ .timestamp = 0, .sequence = 0 },
-        .hi = .{ .timestamp = 1, .sequence = 1 },
-    }};
+    const tests = [_]Test{
+        .{
+            .lo = .{ .timestamp = 0, .sequence = 0 },
+            .hi = .{ .timestamp = 1, .sequence = 1 },
+        },
+        .{
+            .lo = .{ .timestamp = 0, .sequence = 1 },
+            .hi = .{ .timestamp = 1, .sequence = 0 },
+        },
+        .{
+            .lo = .{ .timestamp = 1, .sequence = 0 },
+            .hi = .{ .timestamp = 1, .sequence = 1 },
+        },
+    };
     for (tests) |t| {
         const lo = t.lo.encode();
         const hi = t.hi.encode();
