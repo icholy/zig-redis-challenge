@@ -1,5 +1,6 @@
 const std = @import("std");
 const testing = std.testing;
+const resp = @import("resp.zig");
 const RadixTree = @import("radixtree.zig").RadixTree;
 
 pub const StreamID = struct {
@@ -52,25 +53,19 @@ pub const StreamID = struct {
 };
 
 pub const Record = struct {
-    pub const Pair = struct {
-        key: []const u8,
-        value: []const u8,
-    };
-
-    pairs: std.ArrayList(Pair),
+    data: std.ArrayList(resp.Value),
 
     pub fn init(allocator: std.mem.Allocator) Record {
         return .{
-            .pairs = std.ArrayList(Pair).init(allocator),
+            .data = std.ArrayList(resp.Value).init(allocator),
         };
     }
 
     pub fn deinit(self: Record, allocator: std.mem.Allocator) void {
-        for (self.pairs.items) |pair| {
-            allocator.free(pair.key);
-            allocator.free(pair.value);
+        for (self.data.items) |value| {
+            value.deinit(allocator);
         }
-        self.pairs.deinit();
+        self.data.deinit();
     }
 };
 

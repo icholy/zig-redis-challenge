@@ -74,13 +74,10 @@ pub const XAdd = struct {
         var rec = stream.Record.init(allocator);
         errdefer rec.deinit(allocator);
 
-        var i: usize = 2;
-        while (i < args.len) : (i += 2) {
-            const key = &args[i];
-            const value = &args[i + 1];
-            try rec.pairs.append(.{ .key = key.string, .value = value.string });
-            _ = key.toOwned();
-            _ = value.toOwned();
+        for (args[2..]) |*value| {
+            const owned = value.toOwned();
+            errdefer owned.deinit(allocator);
+            try rec.data.append(owned);
         }
 
         return .{

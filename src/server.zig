@@ -195,8 +195,8 @@ pub const Server = struct {
                     while (try it2.next()) |entry2| {
                         const id = StreamID.decode(entry2.seq[0..16].*);
                         std.debug.print("ENTRY: id='{d}-{d}' =>", .{ id.timestamp, id.sequence });
-                        for (entry2.value.pairs.items) |pair| {
-                            std.debug.print(" {s}={s}", .{ pair.key, pair.value });
+                        for (entry2.value.data.items) |value| {
+                            std.debug.print(" {any}", .{value.string});
                         }
                         std.debug.print("\n", .{});
                     }
