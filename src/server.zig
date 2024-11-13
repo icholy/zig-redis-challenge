@@ -301,17 +301,27 @@ pub const Server = struct {
                 .expires = 0,
             });
         }
-        if (cmd.id.timestamp == 0 and cmd.id.sequence == 0) {
+        var id = .{
+            .timestamp = cmd.id.timestamp orelse 0,
+            .sequence = cmd.id.sequence orelse 0,
+        };
+        if (cmd.id.timestamp == null) {
+            id.timestamp = @intCast(std.time.milliTimestamp());
+        }
+        if (cmd.id.sequence == null and id.timestamp == stream.last.timestamp) {
+            id.sequence = stream.last.sequence + 1;
+        }
+        if (id.timestamp == 0 and id.sequence == 0) {
             try resp.Value.writeErr(w, "ERR The ID specified in XADD must be greater than 0-0", .{});
             return;
         }
-        if (stream.last.order(cmd.id) != .lt) {
+        if (stream.last.order(id) != .lt) {
             try resp.Value.writeErr(w, "ERR The ID specified in XADD is equal or smaller than the target stream top item", .{});
             return;
         }
         const rec = cmd.toOwnedRecord() orelse StreamRecord.init(self.allocator);
         errdefer rec.deinit(self.allocator);
-        try stream.insert(cmd.id, rec);
+        try stream.insert(id, rec);
         try args[1].write(w);
     }
 };
