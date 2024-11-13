@@ -180,7 +180,16 @@ pub const Server = struct {
         defer self.mutex.unlock();
         var it = self.values.iterator();
         while (it.next()) |entry| {
-            std.debug.print("{s} = {any}\n", .{ entry.key_ptr.*, entry.value_ptr.data });
+            const key = entry.key_ptr.*;
+            switch (entry.value_ptr.data) {
+                .value => |value| std.debug.print("VALUE {s} = {any}\n", .{ key, value }),
+                .stream => |stream| {
+                    std.debug.print("STREAM {s}", .{key});
+                    _ = stream;
+                    // const stdout = std.io.getStdOut();
+                    // try stream.records.write(stdout.writer().any());
+                },
+            }
         }
         try resp.Value.write(.{ .simple = "OK" }, w);
     }

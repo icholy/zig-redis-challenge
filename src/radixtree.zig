@@ -224,7 +224,7 @@ pub fn RadixTree(comptime T: type) type {
                     try w.writeAll(self.seq);
                 }
                 if (self.value) |value| {
-                    try w.print(" - {d}", .{value});
+                    try w.print(" - {any}", .{value});
                 }
                 try w.writeAll("\n");
                 for (self.children.entries.items) |entry| {
@@ -360,7 +360,7 @@ pub fn RadixTree(comptime T: type) type {
             }
         }
 
-        fn write(self: *RadixTree(T), w: std.io.AnyWriter) !void {
+        pub fn write(self: *RadixTree(T), w: std.io.AnyWriter) !void {
             if (self.root) |*node| {
                 try node.write(w, 0);
             }
