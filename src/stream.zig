@@ -6,14 +6,14 @@ pub const StreamID = struct {
     timestamp: u64,
     sequence: u64,
 
-    fn decode(encoded: [16]u8) StreamID {
+    pub fn decode(encoded: [16]u8) StreamID {
         return .{
             .timestamp = std.mem.readInt(u64, encoded[0..8], .big),
             .sequence = std.mem.readInt(u64, encoded[8..], .big),
         };
     }
 
-    fn encode(self: StreamID) [16]u8 {
+    pub fn encode(self: StreamID) [16]u8 {
         var encoded: [16]u8 = undefined;
         std.mem.writeInt(u64, encoded[0..8], self.timestamp, .big);
         std.mem.writeInt(u64, encoded[8..], self.sequence, .big);

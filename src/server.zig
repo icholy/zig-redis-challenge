@@ -184,10 +184,17 @@ pub const Server = struct {
             switch (entry.value_ptr.data) {
                 .value => |value| std.debug.print("VALUE {s} = {any}\n", .{ key, value }),
                 .stream => |stream| {
-                    std.debug.print("STREAM {s}", .{key});
-                    _ = stream;
-                    // const stdout = std.io.getStdOut();
-                    // try stream.records.write(stdout.writer().any());
+                    std.debug.print("STREAM {s}\n", .{key});
+                    var it2 = try stream.records.iterator();
+                    defer it2.deinit();
+                    while (try it2.next()) |entry2| {
+                        const id = StreamID.decode(entry2.seq[0..16].*);
+                        std.debug.print("ENTRY: id='{d}-{d}' =>", .{ id.timestamp, id.sequence });
+                        for (entry2.value.pairs.items) |pair| {
+                            std.debug.print(" {s}={s}", .{ pair.key, pair.value });
+                        }
+                        std.debug.print("\n", .{});
+                    }
                 },
             }
         }
@@ -297,6 +304,7 @@ pub const Server = struct {
         const rec = cmd.toOwnedRecord() orelse StreamRecord.init(self.allocator);
         errdefer rec.deinit(self.allocator);
         try stream.insert(cmd.id, rec);
+        try args[1].write(w);
     }
 };
 
