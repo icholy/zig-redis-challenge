@@ -19,6 +19,20 @@ pub const StreamID = struct {
         std.mem.writeInt(u64, encoded[8..], self.sequence, .big);
         return encoded;
     }
+
+    fn parse(input: []const u8) !StreamID {
+        const index = std.mem.indexOf(u8, input, "-") orelse {
+            // no sequence number
+            return .{
+                .timestamp = try std.fmt.parseUnsigned(u64, input, 10),
+                .sequence = 0,
+            };
+        };
+        return .{
+            .timestamp = try std.fmt.parseUnsigned(u64, input[0..index], 10),
+            .sequence = try std.fmt.parseUnsigned(u64, input[index + 1 ..], 10),
+        };
+    }
 };
 
 pub const Record = struct {
@@ -98,6 +112,17 @@ test "StreamID.encode: order" {
         const hi = t.hi.encode();
         try testing.expectEqual(std.mem.order(u8, &lo, &hi), .lt);
     }
+}
+
+test "StreamID.parse: 1" {
+    try testing.expectEqual(
+        StreamID{ .timestamp = 1, .sequence = 2 },
+        try StreamID.parse("1-2"),
+    );
+    try testing.expectEqual(
+        StreamID{ .timestamp = 1, .sequence = 0 },
+        try StreamID.parse("1"),
+    );
 }
 
 test "Stream.insert" {
