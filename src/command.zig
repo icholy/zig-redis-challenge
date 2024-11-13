@@ -1,6 +1,7 @@
 const std = @import("std");
 const resp = @import("resp.zig");
 const stream = @import("stream.zig");
+const testing = std.testing;
 
 pub const Set = struct {
     key: []const u8,
@@ -188,3 +189,22 @@ pub const XRead = struct {
         return .{ .ops = try ops.toOwnedSlice() };
     }
 };
+
+test "XRead.parse: streams" {
+    var input = [_]resp.Value{
+        .{ .string = try testing.allocator.dupe(u8, "streams") },
+        .{ .string = try testing.allocator.dupe(u8, "mystream") },
+        .{ .string = try testing.allocator.dupe(u8, "1-0") },
+    };
+    defer {
+        for (input) |value| {
+            value.deinit(testing.allocator);
+        }
+    }
+    var cmd = try XRead.parse(&input, testing.allocator);
+    defer cmd.deinit(testing.allocator);
+    try testing.expectEqual(@as(usize, 1), cmd.ops.len);
+    try testing.expectEqualStrings("mystream", cmd.ops[0].key.string);
+    try testing.expectEqual(@as(u64, 1), cmd.ops[0].start.timestamp);
+    try testing.expectEqual(@as(u64, 0), cmd.ops[0].start.sequence);
+}
