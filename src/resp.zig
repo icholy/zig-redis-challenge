@@ -6,8 +6,8 @@ pub const Value = union(enum) {
     string: []const u8,
     @"error": []const u8,
     array: []Value,
+    borrowed_array: []Value,
     null_string,
-    borrowed: *Value,
 
     pub fn deinit(self: Value, allocator: std.mem.Allocator) void {
         switch (self) {
@@ -16,19 +16,18 @@ pub const Value = union(enum) {
                 for (a) |v| v.deinit(allocator);
                 allocator.free(a);
             },
-            .null_string => {},
-            .borrowed => {},
+            .null_string, .borrowed_array => {},
         }
     }
 
-    // pub fn initArray(allocator: std.mem.Allocator, n: usize) !Value {
-    //     var array = try allocator.alloc(Value, n);
-    //     for (0..array.len) |i| {
-    //         array[i] = .null_string;
-    //     }
-    //     return .{ .array = array };
-    // }
-    //
+    pub fn initArray(allocator: std.mem.Allocator, n: usize) !Value {
+        var array = try allocator.alloc(Value, n);
+        for (0..array.len) |i| {
+            array[i] = .null_string;
+        }
+        return .{ .array = array };
+    }
+
     pub fn toOwned(self: *Value) Value {
         switch (self.*) {
             .simple => |s| {
@@ -50,9 +49,7 @@ pub const Value = union(enum) {
             .null_string => {
                 return .null_string;
             },
-            .borrowed => |v| {
-                return v.toOwned();
-            },
+            .borrowed_array => @panic("cannot call toOwned on .borrowed_array"),
         }
     }
 
@@ -64,7 +61,7 @@ pub const Value = union(enum) {
             .string => |s| {
                 try writer.print("${d}\r\n{s}\r\n", .{ s.len, s });
             },
-            .array => |a| {
+            .array, .borrowed_array => |a| {
                 try writer.print("*{d}\r\n", .{a.len});
                 for (a) |v| {
                     try v.write(writer);
@@ -75,9 +72,6 @@ pub const Value = union(enum) {
             },
             .@"error" => |e| {
                 try writeErr(writer, "{s}", .{e});
-            },
-            .borrowed => |v| {
-                try v.write(writer);
             },
         }
     }

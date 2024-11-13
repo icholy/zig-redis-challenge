@@ -34,6 +34,10 @@ pub const StreamID = struct {
         return std.math.order(self.sequence, other.sequence);
     }
 
+    pub fn format(self: StreamID, allocator: std.mem.Allocator) ![]u8 {
+        return std.fmt.allocPrint(allocator, "{d}-{d}", .{ self.timestamp, self.sequence });
+    }
+
     pub fn parse(input: []const u8) !Parsed {
         if (std.mem.eql(u8, input, "*")) {
             return .{ .timestamp = null, .sequence = null };

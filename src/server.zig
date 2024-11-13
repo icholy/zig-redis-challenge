@@ -342,50 +342,45 @@ pub const Server = struct {
         const cmd = try command.XRange.parse(args);
         defer cmd.deinit(self.allocator);
         try resp.Value.writeErr(w, "Not Implemented", .{});
-        // // get the steam
-        // self.mutex.lock();
-        // defer self.mutex.unlock();
-        // const value = self.values.get(cmd.key.string) orelse {
-        //     try resp.Value.writeErr(w, "ERR no such key '{s}'", .{cmd.key.string});
-        //     return;
-        // };
-        // if (value.data != .stream) {
-        //     try resp.Value.writeErr(w, "ERR '{s}' is not a stream", .{cmd.key.string});
-        //     return;
-        // }
-        // const stream: *Stream = value.data.stream;
-        // // seek to the start id
-        // var it = try stream.records.iterator();
-        // defer it.deinit();
-        // const start = cmd.start.encode();
-        // try it.seek(&start);
-        //
-        // var array = std.ArrayList(resp.Value).init(self.allocator);
-        // defer array.deinit();
-        //
-        // while (try it.next()) |entry| {
-        //     const id = StreamID.decode(entry.seq[0..16].*);
-        //     if (id.order(cmd.end) == .gt) {
-        //         break;
-        //     }
-        //     // format the id
-        //     const formatted_id = try std.fmt.allocPrint(self.allocator, "{d}-{d}", .{ id.timestamp, id.sequence })
-        //     errdefer self.allocator.free(formatted_id);
-        //     // format the key/value pairs
-        //     const pairs = entry.value.pairs;
-        //     var pairs_value = try resp.Value.initArray(self.allocator, pairs.items.len);
-        //     var i
-        //     for (pairs.items, 0..) |pair, i| {
-        //         pairs_value.array[i*2] = .{ .borrowed =  }
-        //         pairs_value.array[(i*2)+1] = .{ .borrowed =  }
-        //     }
-        //
-        //
-        //     var resp_entry = try resp.Value.initArray(self.allocator, 2);
-        //     errdefer resp_entry.deinit(self.allocator);
-        // }
-        //
-        // return resp.Value.write(.{ .array = array.items }, w);
+        // get the steam
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        const value = self.values.get(cmd.key.string) orelse {
+            try resp.Value.writeErr(w, "ERR no such key '{s}'", .{cmd.key.string});
+            return;
+        };
+        if (value.data != .stream) {
+            try resp.Value.writeErr(w, "ERR '{s}' is not a stream", .{cmd.key.string});
+            return;
+        }
+        const stream: *Stream = value.data.stream;
+        // seek to the start id
+        var it = try stream.records.iterator();
+        defer it.deinit();
+        const start = cmd.start.encode();
+        try it.seek(&start);
+
+        var entries = std.ArrayList(resp.Value).init(self.allocator);
+        defer {
+            for (entries.items) |v| {
+                v.deinit(self.allocator);
+            }
+            entries.deinit();
+        }
+
+        while (try it.next()) |entry| {
+            const id = StreamID.decode(entry.seq[0..16].*);
+            if (id.order(cmd.end) == .gt) {
+                break;
+            }
+            var resp_entry = try resp.Value.initArray(self.allocator, 2);
+            errdefer resp_entry.deinit(self.allocator);
+            resp_entry.array[0] = .{ .string = try id.format(self.allocator) };
+            resp_entry.array[1] = .{ .borrowed_array = entry.value.data.items };
+            try entries.append(resp_entry);
+        }
+
+        return resp.Value.write(.{ .array = entries.items }, w);
     }
 };
 
