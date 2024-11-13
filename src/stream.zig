@@ -41,11 +41,11 @@ pub const Record = struct {
 };
 
 pub const Stream = struct {
-    records: RadixTree(Record),
+    records: RadixTree(*Record),
 
     pub fn init(allocator: std.mem.Allocator) Stream {
         return .{
-            .records = RadixTree(Record).init(allocator),
+            .records = RadixTree(*Record).init(allocator),
         };
     }
 
@@ -54,10 +54,8 @@ pub const Stream = struct {
     }
 
     pub fn insert(self: *Stream, id: StreamID, rec: *Record) !void {
-        _ = self;
-        _ = id;
-        _ = rec;
-        return error.NotImplemented;
+        const seq = id.encode();
+        try self.records.insert(&seq, rec);
     }
 };
 
