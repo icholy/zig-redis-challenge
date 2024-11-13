@@ -77,12 +77,14 @@ pub const Stream = struct {
     last: StreamID,
     tree: RadixTree(Record),
     mutex: std.Thread.Mutex,
+    condition: std.Thread.Condition,
 
     pub fn init(allocator: std.mem.Allocator) Stream {
         return .{
             .tree = RadixTree(Record).init(allocator),
             .last = .{ .timestamp = 0, .sequence = 0 },
             .mutex = .{},
+            .condition = .{},
         };
     }
 
