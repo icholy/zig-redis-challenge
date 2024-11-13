@@ -260,10 +260,11 @@ pub const Server = struct {
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
+        if (args.len < 2 or args.len % 2 != 0 or args[0] != .string or args[1] != .string) {
+            return error.InvalidArgs;
+        }
         _ = self;
         _ = w;
-        _ = args;
-        return error.NotImplemented;
     }
 };
 
