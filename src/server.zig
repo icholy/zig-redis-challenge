@@ -70,7 +70,9 @@ pub const Server = struct {
         const req = try resp.Request.read(self.allocator, r);
         defer req.deinit();
         std.debug.print("request: {s}, args: {any}\n", .{ req.name, req.args });
-        try self.handle(req, w);
+        self.handle(req, w) catch |err| {
+            try resp.Value.writeErr(w, "ERR: failed to process request {s}", .{@errorName(err)});
+        };
     }
 
     fn handle(self: *Server, req: resp.Request, w: std.io.AnyWriter) !void {
@@ -103,6 +105,9 @@ pub const Server = struct {
         }
         if (std.mem.eql(u8, req.name, "XADD")) {
             return self.onXAdd(w, req.args);
+        }
+        if (std.mem.eql(u8, req.name, "XRANGE")) {
+            return self.onXRange(w, req.args);
         }
         try resp.Value.writeErr(w, "ERR: unrecognised command: {s}", .{req.name});
     }
@@ -330,6 +335,12 @@ pub const Server = struct {
         const formatted_id = try std.fmt.allocPrint(self.allocator, "{d}-{d}", .{ id.timestamp, id.sequence });
         defer self.allocator.free(formatted_id);
         try resp.Value.write(.{ .string = formatted_id }, w);
+    }
+
+    fn onXRange(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
+        const cmd = try command.XRange.parse(args);
+        defer cmd.deinit(self.allocator);
+        try resp.Value.writeErr(w, "Not Implemented", .{});
     }
 };
 

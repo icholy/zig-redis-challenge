@@ -118,8 +118,8 @@ pub const XRange = struct {
         };
     }
 
-    pub fn parseID(input: []const u8) !stream.StreamID {
-        const parsed = stream.StreamID.parse(input) orelse {
+    fn parseID(input: []const u8) !stream.StreamID {
+        const parsed = stream.StreamID.parse(input) catch {
             const timestamp = try std.fmt.parseInt(u64, input, 10);
             return .{
                 .timestamp = timestamp,
