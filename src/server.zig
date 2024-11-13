@@ -353,7 +353,7 @@ pub const Server = struct {
     }
 
     fn onXRead(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
-        const cmd = try command.XRead.parse(args, self.allocator);
+        var cmd = try command.XRead.parse(args, self.allocator);
         defer cmd.deinit(self.allocator);
         self.mutex.lock();
         defer self.mutex.unlock();
