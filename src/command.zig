@@ -148,7 +148,7 @@ pub const XRead = struct {
     }
 
     pub fn parse(args: []resp.Value, allocator: std.mem.Allocator) !XRead {
-        if (args.len < 2) {
+        if (args.len < 3) {
             return error.InvalidArgs;
         }
         for (args) |arg| {
@@ -159,12 +159,12 @@ pub const XRead = struct {
         if (!std.mem.eql(u8, args[0].string, "streams")) {
             return error.InvalidArgs;
         }
-        const start = try stream.StreamID.parse(args[1].string);
+        const start = try stream.StreamID.parse(args[args.len - 1].string);
         if (start.timestamp == null or start.sequence == null) {
             return error.InvalidStreamID;
         }
         const keys = try allocator.alloc(resp.Value, args.len - 2);
-        for (args[2..], 0..) |*v, i| {
+        for (args[1 .. args.len - 1], 0..) |*v, i| {
             keys[i] = v.toOwned();
         }
         return .{
