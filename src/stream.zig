@@ -59,11 +59,13 @@ pub const Record = struct {
 };
 
 pub const Stream = struct {
+    last: StreamID,
     records: RadixTree(Record),
 
     pub fn init(allocator: std.mem.Allocator) Stream {
         return .{
             .records = RadixTree(Record).init(allocator),
+            .last = .{ .timestamp = 0, .sequence = 0 },
         };
     }
 
@@ -72,6 +74,7 @@ pub const Stream = struct {
     }
 
     pub fn insert(self: *Stream, id: StreamID, rec: Record) !void {
+        self.last = id;
         const seq = id.encode();
         try self.records.insert(&seq, rec);
     }
