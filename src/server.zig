@@ -99,6 +99,9 @@ pub const Server = struct {
         if (std.mem.eql(u8, req.name, "TYPE")) {
             return self.onType(w, req.args);
         }
+        if (std.mem.eql(u8, req.name, "XADD")) {
+            return self.onXAdd(w, req.args);
+        }
         try resp.Value.writeErr(w, "ERR: unrecognised command: {s}", .{req.name});
     }
 
@@ -254,6 +257,13 @@ pub const Server = struct {
         } else {
             try resp.Value.write(.{ .simple = "none" }, w);
         }
+    }
+
+    fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
+        _ = self;
+        _ = w;
+        _ = args;
+        return error.NotImplemented;
     }
 };
 
