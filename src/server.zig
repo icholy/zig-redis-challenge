@@ -1,15 +1,18 @@
 const std = @import("std");
 const resp = @import("resp.zig");
 const command = @import("command.zig");
+const stream = @import("stream.zig");
 const testing = std.testing;
 
 pub const Server = struct {
     const ValueData = union(enum) {
         value: resp.Value,
+        stream: *stream.Stream,
 
         pub fn deinit(self: ValueData, allocator: std.mem.Allocator) void {
             switch (self) {
                 .value => |v| v.deinit(allocator),
+                .stream => |s| s.deinit(),
             }
         }
     };
@@ -160,6 +163,9 @@ pub const Server = struct {
                     return;
                 }
                 try v.write(w);
+            },
+            .stream => {
+                try resp.Value.writeErr(w, "cannot GET from stream", .{});
             },
         }
     }
