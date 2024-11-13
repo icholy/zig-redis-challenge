@@ -242,8 +242,15 @@ pub const Server = struct {
         const key = args[0].string;
         self.mutex.lock();
         defer self.mutex.unlock();
-        if (self.values.contains(key)) {
-            try resp.Value.write(.{ .simple = "string" }, w);
+        if (self.values.get(key)) |v| {
+            switch (v.data) {
+                .value => {
+                    try resp.Value.write(.{ .simple = "string" }, w);
+                },
+                .stream => {
+                    try resp.Value.write(.{ .simple = "stream" }, w);
+                },
+            }
         } else {
             try resp.Value.write(.{ .simple = "none" }, w);
         }
