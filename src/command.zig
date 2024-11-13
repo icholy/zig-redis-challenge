@@ -135,3 +135,35 @@ pub const XRange = struct {
         };
     }
 };
+
+pub const XRead = struct {
+    keys: []resp.Value,
+    start: stream.StreamID,
+
+    pub fn deinit(self: XRead, allocator: std.mem.Allocator) void {
+        for (self.keys) |key| {
+            key.deinit(allocator);
+        }
+        allocator.free(self.keys);
+    }
+
+    pub fn parse(args: []resp.Value, allocator: std.mem.Allocator) !XRead {
+        if (args.len < 2) {
+            return error.InvalidArgs;
+        }
+        for (args) |arg| {
+            if (arg != .string) {
+                return error.InvalidArgs;
+            }
+        }
+        if (!std.mem.eql(u8, args[0], "streams")) {
+            return error.InvalidArgs;
+        }
+        const start = try stream.StreamID.parse(args[1].string);
+        const keys = try allocator.alloc(resp.Value, args.len - 2);
+        for (args[2..], 0..) |*v, i| {
+            keys[i] = v.toOwned();
+        }
+        return .{ .keys = keys, .start = start };
+    }
+};
