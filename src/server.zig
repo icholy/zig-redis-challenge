@@ -344,34 +344,37 @@ pub const Server = struct {
         // get the steam
         self.mutex.lock();
         defer self.mutex.unlock();
-        const value = self.values.get(cmd.key.string) orelse {
-            try resp.Value.writeErr(w, "ERR no such key '{s}'", .{cmd.key.string});
-            return;
+        const output = try self.streamRead(cmd.key.string, cmd.start, cmd.end);
+        defer output.deinit(self.allocator);
+        return output.write(w);
+    }
+
+    fn streamRead(self: *Server, key: []const u8, start: ?StreamID, end: ?StreamID) !resp.Value {
+        const value = self.values.get(key) orelse {
+            return error.InvalidKey;
         };
         if (value.data != .stream) {
-            try resp.Value.writeErr(w, "ERR '{s}' is not a stream", .{cmd.key.string});
-            return;
+            return error.InvalidKey;
         }
         const stream: *Stream = value.data.stream;
         // seek to the start id
         var it = try stream.records.iterator();
         defer it.deinit();
-        if (cmd.start) |start| {
-            const encoded = start.encode();
+        if (start) |id| {
+            const encoded = id.encode();
             try it.seek(&encoded);
         }
-        const end = cmd.end orelse stream.last;
         // iterate throug the values and build up the response array
         var entries = std.ArrayList(resp.Value).init(self.allocator);
-        defer {
+        defer entries.deinit();
+        errdefer {
             for (entries.items) |v| {
                 v.deinit(self.allocator);
             }
-            entries.deinit();
         }
         while (try it.next()) |entry| {
             const id = StreamID.decode(entry.seq[0..16].*);
-            if (id.order(end) == .gt) {
+            if (end != null and id.order(end.?) == .gt) {
                 break;
             }
             var resp_entry = try resp.Value.initArray(self.allocator, 2);
@@ -380,8 +383,7 @@ pub const Server = struct {
             resp_entry.array[1] = .{ .borrowed_array = entry.value.data.items };
             try entries.append(resp_entry);
         }
-        // write out the response
-        return resp.Value.write(.{ .array = entries.items }, w);
+        return .{ .array = try entries.toOwnedSlice() };
     }
 };
 
