@@ -49,7 +49,11 @@ pub const Record = struct {
         };
     }
 
-    pub fn deinit(self: *Record) void {
+    pub fn deinit(self: Record, allocator: std.mem.Allocator) void {
+        for (self.pairs.items) |pair| {
+            allocator.free(pair.key);
+            allocator.free(pair.value);
+        }
         self.pairs.deinit();
     }
 };

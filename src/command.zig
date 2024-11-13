@@ -1,5 +1,6 @@
 const std = @import("std");
 const resp = @import("resp.zig");
+const stream = @import("stream.zig");
 
 pub const Set = struct {
     key: []const u8,
@@ -37,5 +38,45 @@ pub const Set = struct {
             return (try std.fmt.parseInt(u64, ttl.string, 10));
         }
         return error.InvalidArgs;
+    }
+};
+
+pub const XAdd = struct {
+    key: []const u8,
+    id: stream.StreamID,
+    record: stream.Record,
+
+    pub fn deinit(self: XAdd, allocator: std.mem.Allocator) void {
+        allocator.free(self.key);
+        self.record.deinit();
+    }
+
+    pub fn parse(args: []resp.Value, allocator: std.mem.Allocator) !XAdd {
+        if (args.len < 2 or args.len % 2 != 0) {
+            return error.InvalidArgs;
+        }
+        for (args) |a| {
+            if (a != .string) {
+                return error.InvalidArgs;
+            }
+        }
+        const id = try stream.StreamID.parse(args[1].string);
+        var rec = stream.Record.init(allocator);
+        errdefer rec.deinit(allocator);
+
+        var i: usize = 2;
+        while (i < args.len) : (i += 2) {
+            const key = args[i];
+            const value = args[i + 1];
+            try rec.pairs.append(.{ .key = key.string, .value = value.string });
+            _ = key.toOwned();
+            _ = value.toOwned();
+        }
+
+        return .{
+            .key = args[0].toOwned().string,
+            .id = id,
+            .record = rec,
+        };
     }
 };
