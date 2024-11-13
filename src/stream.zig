@@ -3,8 +3,13 @@ const testing = std.testing;
 const RadixTree = @import("radixtree.zig").RadixTree;
 
 pub const StreamID = struct {
-    timestamp: ?u64,
-    sequence: ?u64,
+    const Parsed = struct {
+        timestamp: ?u64,
+        sequence: ?u64,
+    };
+
+    timestamp: u64,
+    sequence: u64,
 
     pub fn decode(encoded: [16]u8) StreamID {
         return .{
@@ -15,27 +20,30 @@ pub const StreamID = struct {
 
     pub fn encode(self: StreamID) [16]u8 {
         var encoded: [16]u8 = undefined;
-        std.mem.writeInt(u64, encoded[0..8], self.timestamp.?, .big);
-        std.mem.writeInt(u64, encoded[8..], self.sequence.?, .big);
+        std.mem.writeInt(u64, encoded[0..8], self.timestamp, .big);
+        std.mem.writeInt(u64, encoded[8..], self.sequence, .big);
         return encoded;
     }
 
     pub fn order(self: StreamID, other: StreamID) std.math.Order {
-        const ord = std.math.order(self.timestamp.?, other.timestamp.?);
+        const ord = std.math.order(self.timestamp, other.timestamp);
         if (ord != .eq) {
             return ord;
         }
-        return std.math.order(self.sequence.?, other.sequence.?);
+        return std.math.order(self.sequence, other.sequence);
     }
 
-    pub fn parse(input: []const u8) !StreamID {
-        const index = std.mem.indexOf(u8, input, "-") orelse {
-            // no sequence number
+    pub fn parse(input: []const u8) !Parsed {
+        if (std.mem.eql(u8, input, "*")) {
+            return .{ .timestamp = null, .sequence = null };
+        }
+        if (std.mem.endsWith(u8, input, "-*")) {
             return .{
-                .timestamp = try std.fmt.parseUnsigned(u64, input, 10),
-                .sequence = 0,
+                .timestamp = try std.fmt.parseUnsigned(u64, input[0 .. input.len - 2], 10),
+                .sequence = null,
             };
-        };
+        }
+        const index = std.mem.indexOf(u8, input, "-") orelse return error.InvalidStreamID;
         return .{
             .timestamp = try std.fmt.parseUnsigned(u64, input[0..index], 10),
             .sequence = try std.fmt.parseUnsigned(u64, input[index + 1 ..], 10),
@@ -131,12 +139,12 @@ test "StreamID.encode: order" {
 
 test "StreamID.parse: 1" {
     try testing.expectEqual(
-        StreamID{ .timestamp = 1, .sequence = 2 },
+        StreamID.Parsed{ .timestamp = 1, .sequence = 2 },
         try StreamID.parse("1-2"),
     );
     try testing.expectEqual(
-        StreamID{ .timestamp = 1, .sequence = 0 },
-        try StreamID.parse("1"),
+        StreamID.Parsed{ .timestamp = 1, .sequence = 0 },
+        try StreamID.parse("1-0"),
     );
 }
 
@@ -144,6 +152,6 @@ test "Stream.insert" {
     var stream = Stream.init(testing.allocator);
     defer stream.deinit();
     var rec = Record.init(testing.allocator);
-    defer rec.deinit();
-    try stream.insert(.{ .timestamp = 1, .sequence = 0 }, &rec);
+    defer rec.deinit(testing.allocator);
+    try stream.insert(.{ .timestamp = 1, .sequence = 0 }, rec);
 }
