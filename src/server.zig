@@ -131,7 +131,7 @@ pub const Server = struct {
         const r = self.config.replicaof orelse return;
         while (true) {
             self.replicate(r) catch |err| {
-                std.debug.print("REPLICATION: ERR: {s}", .{@errorName(err)});
+                std.debug.print("REPLICATION: ERR: {s}\n", .{@errorName(err)});
             };
             std.time.sleep(5 * std.time.ns_per_s);
         }
