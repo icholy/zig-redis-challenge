@@ -240,6 +240,7 @@ pub const Server = struct {
         if (req.is("INFO")) return self.onInfo(w, req.args);
         if (req.is("REPLCONF")) return self.onReplConf(w);
         if (req.is("PSYNC")) return self.onPsync(w);
+        if (req.is("WAIT")) return self.onWait(w, req.args);
         try resp.Value.writeErr(w, "ERR: unrecognised command: {s}", .{req.name});
     }
 
@@ -524,6 +525,12 @@ pub const Server = struct {
         // signal to break out of the request/response loop
         // and use this connection for replication
         return error.RegisterSlave;
+    }
+
+    fn onWait(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
+        _ = self;
+        _ = args;
+        try resp.Value.writeIntString(w, 0);
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
