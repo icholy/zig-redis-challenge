@@ -228,7 +228,7 @@ pub const Server = struct {
         if (req.is("DISCARD")) return self.onDiscard(w);
         if (req.is("INFO")) return self.onInfo(w, req.args);
         if (req.is("REPLCONF")) return self.onReplConf(w);
-        if (req.is("PSYNC")) return self.onPsync(w, req.args);
+        if (req.is("PSYNC")) return self.onPsync(w);
         try resp.Value.writeErr(w, "ERR: unrecognised command: {s}", .{req.name});
     }
 
@@ -501,8 +501,7 @@ pub const Server = struct {
         try resp.Value.write(.{ .simple = "OK" }, w);
     }
 
-    fn onPsync(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
-        _ = args;
+    fn onPsync(self: *Server, w: std.io.AnyWriter) !void {
         const res = try std.fmt.allocPrint(self.allocator, "FULLRESYNC {s} 0", .{self.config.replid});
         defer self.allocator.free(res);
         try resp.Value.write(.{ .simple = res }, w);
