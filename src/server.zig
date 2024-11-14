@@ -132,6 +132,14 @@ pub const Server = struct {
         try resp.Value.write(.{ .string = "psync2" }, writer);
         const replconf_res2 = try resp.Value.read(self.allocator, reader);
         defer replconf_res2.deinit(self.allocator);
+
+        // PSYNC
+        try resp.Value.writeArrayOpen(writer, 3);
+        try resp.Value.write(.{ .string = "PSYNC" }, writer);
+        try resp.Value.write(.{ .string = "?" }, writer);
+        try resp.Value.write(.{ .string = "-1" }, writer);
+        const psync_res = try resp.Value.read(self.allocator, reader);
+        defer psync_res.deinit(self.allocator);
     }
 
     pub fn next(self: *Server, r: std.io.AnyReader, w: std.io.AnyWriter) !void {
