@@ -63,6 +63,12 @@ pub const Value = union(enum) {
         try writer.print("*{d}\r\n", .{size});
     }
 
+    pub fn writeIntString(writer: std.io.AnyWriter, i: i64) !void {
+        var buf: [20]u8 = undefined;
+        const n = std.fmt.formatIntBuf(&buf, i, 10, .lower, .{});
+        try write(.{ .string = buf[0..n] }, writer);
+    }
+
     pub fn write(self: Value, writer: std.io.AnyWriter) !void {
         switch (self) {
             .simple => |s| {

@@ -114,8 +114,24 @@ pub const Server = struct {
         // PING
         try resp.Value.writeArrayOpen(writer, 1);
         try resp.Value.write(.{ .string = "PING" }, writer);
-        const res = try resp.Value.read(self.allocator, reader);
-        defer res.deinit(self.allocator);
+        const ping_res = try resp.Value.read(self.allocator, reader);
+        defer ping_res.deinit(self.allocator);
+
+        // REPLCONF port
+        try resp.Value.writeArrayOpen(writer, 3);
+        try resp.Value.write(.{ .string = "REPLCONF" }, writer);
+        try resp.Value.write(.{ .string = "listening-port" }, writer);
+        try resp.Value.writeIntString(writer, self.config.port);
+        const replconf_res1 = try resp.Value.read(self.allocator, reader);
+        defer replconf_res1.deinit(self.allocator);
+
+        // REPLCONF capabilities
+        try resp.Value.writeArrayOpen(writer, 3);
+        try resp.Value.write(.{ .string = "REPLCONF" }, writer);
+        try resp.Value.write(.{ .string = "capa" }, writer);
+        try resp.Value.write(.{ .string = "psync2" }, writer);
+        const replconf_res2 = try resp.Value.read(self.allocator, reader);
+        defer replconf_res2.deinit(self.allocator);
     }
 
     pub fn next(self: *Server, r: std.io.AnyReader, w: std.io.AnyWriter) !void {
