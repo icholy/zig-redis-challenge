@@ -92,6 +92,7 @@ pub const Server = struct {
         if (req.is("XRANGE")) return self.onXRange(w, req.args);
         if (req.is("XREAD")) return self.onXRead(w, req.args);
         if (req.is("INCR")) return self.onIncr(w, req.args);
+        if (req.is("MULTI")) return self.onMulti(w, req.args);
         try resp.Value.writeErr(w, "ERR: unrecognised command: {s}", .{req.name});
     }
 
@@ -289,6 +290,14 @@ pub const Server = struct {
         }
         data.number += 1;
         try resp.Value.write(.{ .integer = data.number }, w);
+    }
+
+    fn onMulti(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
+        _ = self;
+        if (args.len != 0) {
+            return error.InvalidArgs;
+        }
+        try resp.Value.write(.{ .simple = "OK" }, w);
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
