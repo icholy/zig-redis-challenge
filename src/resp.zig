@@ -211,6 +211,14 @@ pub const Request = struct {
         };
     }
 
+    pub fn write(self: Request, writer: std.io.AnyWriter) !void {
+        try Value.writeArrayOpen(writer, self.args.len + 1);
+        try Value.write(.{ .string = self.name }, writer);
+        for (self.args) |arg| {
+            try arg.write(writer);
+        }
+    }
+
     pub fn is(self: Request, name: []const u8) bool {
         return util.ieql(self.name, name);
     }

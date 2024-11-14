@@ -104,8 +104,11 @@ pub const Server = struct {
             self.next(r, w) catch |err| switch (err) {
                 error.EndOfStream => return,
                 error.RegisterSlave => {
+                    self.slaves.append(conn) catch |err2| {
+                        std.debug.print("unable to register slave: {s}\n", .{@errorName(err2)});
+                        return;
+                    };
                     slave = true;
-                    try self.slaves.append(conn);
                 },
                 else => {
                     std.debug.print("next error: {s}\n", .{@errorName(err)});
@@ -163,12 +166,23 @@ pub const Server = struct {
         const req = try resp.Request.read(self.allocator, r);
         defer req.deinit();
         std.debug.print("request: {s}, args: {any}\n", .{ req.name, req.args });
+        try self.publish(req);
         self.handle(req, r, w) catch |err| {
             if (err == error.RegisterSlave) {
                 return err;
             }
             try resp.Value.writeErr(w, "ERR: failed to process request {s}", .{@errorName(err)});
         };
+    }
+
+    fn publish(self: *Server, req: resp.Request) !void {
+        if (!req.is("SET")) {
+            return;
+        }
+        for (self.slaves.items) |item| {
+            const writer = item.stream.writer().any();
+            try req.write(writer);
+        }
     }
 
     fn handle(self: *Server, req: resp.Request, r: std.io.AnyReader, w: std.io.AnyWriter) !void {
