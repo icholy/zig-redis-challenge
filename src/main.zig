@@ -29,6 +29,14 @@ pub fn main() !void {
             config.dbfilename = try allocator.dupe(u8, dbfilename);
             continue;
         }
+        if (std.mem.eql(u8, arg, "--port")) {
+            const port = args.next() orelse {
+                std.debug.print("--port expects value\n", .{});
+                std.process.exit(1);
+            };
+            config.port = try std.fmt.parseInt(u16, port, 10);
+            continue;
+        }
     }
 
     var server = Server.init(allocator, config);
@@ -57,7 +65,7 @@ pub fn main() !void {
         }
     }
 
-    const addr = try net.Address.resolveIp("127.0.0.1", 6379);
+    const addr = try net.Address.resolveIp("127.0.0.1", config.port);
     var listener = try addr.listen(.{ .reuse_address = true });
     defer listener.deinit();
 

@@ -30,6 +30,7 @@ pub const Server = struct {
     pub const Config = struct {
         dir: []const u8 = "",
         dbfilename: []const u8 = "",
+        port: u16 = 6379,
     };
 
     allocator: std.mem.Allocator,
@@ -215,6 +216,15 @@ pub const Server = struct {
             var config = [_]resp.Value{
                 .{ .string = name },
                 .{ .string = self.config.dbfilename },
+            };
+            try resp.Value.write(.{ .array = &config }, w);
+            return;
+        }
+
+        if (std.mem.eql(u8, name, "port")) {
+            var config = [_]resp.Value{
+                .{ .string = name },
+                .{ .integer = self.config.port },
             };
             try resp.Value.write(.{ .array = &config }, w);
             return;
