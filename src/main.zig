@@ -37,6 +37,15 @@ pub fn main() !void {
             config.port = try std.fmt.parseInt(u16, port, 10);
             continue;
         }
+
+        if (std.mem.eql(u8, arg, "--replicaof")) {
+            const replicaof = args.next() orelse {
+                std.debug.print("--replicaof expects value\n", .{});
+                std.process.exit(1);
+            };
+            config.replicaof = try Server.Config.ReplicaOf.parse(allocator, replicaof);
+            continue;
+        }
     }
 
     var server = Server.init(allocator, config);
