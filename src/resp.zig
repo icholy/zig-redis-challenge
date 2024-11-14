@@ -59,6 +59,10 @@ pub const Value = union(enum) {
         }
     }
 
+    pub fn writeArrayOpen(writer: std.io.AnyWriter, size: usize) !void {
+        try writer.print("*{d}\r\n", .{size});
+    }
+
     pub fn write(self: Value, writer: std.io.AnyWriter) !void {
         switch (self) {
             .simple => |s| {
@@ -68,7 +72,7 @@ pub const Value = union(enum) {
                 try writer.print("${d}\r\n{s}\r\n", .{ s.len, s });
             },
             .array, .borrowed_array => |a| {
-                try writer.print("*{d}\r\n", .{a.len});
+                try writeArrayOpen(writer, a.len);
                 for (a) |v| {
                     try v.write(writer);
                 }
