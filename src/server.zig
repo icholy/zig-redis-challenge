@@ -73,12 +73,12 @@ pub const Server = struct {
         const req = try resp.Request.read(self.allocator, r);
         defer req.deinit();
         std.debug.print("request: {s}, args: {any}\n", .{ req.name, req.args });
-        self.handle(req, w) catch |err| {
+        self.handle(req, r, w) catch |err| {
             try resp.Value.writeErr(w, "ERR: failed to process request {s}", .{@errorName(err)});
         };
     }
 
-    fn handle(self: *Server, req: resp.Request, w: std.io.AnyWriter) !void {
+    fn handle(self: *Server, req: resp.Request, r: std.io.AnyReader, w: std.io.AnyWriter) !void {
         if (req.is("COMMAND")) return self.onCommand(w);
         if (req.is("PING")) return self.onPing(w);
         if (req.is("ECHO")) return self.onEcho(w, req.args);
@@ -92,7 +92,7 @@ pub const Server = struct {
         if (req.is("XRANGE")) return self.onXRange(w, req.args);
         if (req.is("XREAD")) return self.onXRead(w, req.args);
         if (req.is("INCR")) return self.onIncr(w, req.args);
-        if (req.is("MULTI")) return self.onMulti(w, req.args);
+        if (req.is("MULTI")) return self.onMulti(r, w, req.args);
         try resp.Value.writeErr(w, "ERR: unrecognised command: {s}", .{req.name});
     }
 
@@ -292,12 +292,31 @@ pub const Server = struct {
         try resp.Value.write(.{ .integer = data.number }, w);
     }
 
-    fn onMulti(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
-        _ = self;
+    fn onMulti(self: *Server, r: std.io.AnyReader, w: std.io.AnyWriter, args: []resp.Value) !void {
         if (args.len != 0) {
             return error.InvalidArgs;
         }
         try resp.Value.write(.{ .simple = "OK" }, w);
+        var reqs = std.ArrayList(resp.Request).init(self.allocator);
+        defer {
+            for (reqs.items) |req| {
+                req.deinit();
+            }
+            reqs.deinit();
+        }
+        while (true) {
+            const req = try resp.Request.read(self.allocator, r);
+            if (req.is("EXEC")) {
+                defer req.deinit();
+                for (reqs.items) |req2| {
+                    try self.handle(req2, r, w);
+                }
+                continue;
+            }
+            errdefer req.deinit();
+            try reqs.append(req);
+            try resp.Value.write(.{ .simple = "QUEUED" }, w);
+        }
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
