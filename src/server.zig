@@ -59,6 +59,7 @@ pub const Server = struct {
         dbfilename: []const u8 = "",
         port: u16 = 6379,
         replicaof: ?ReplicaOf = null,
+        replid: []const u8 = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb",
     };
 
     allocator: std.mem.Allocator,
@@ -430,11 +431,11 @@ pub const Server = struct {
         const format =
             \\# Replication
             \\role:{s}
-            \\master_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb
+            \\master_replid:{s}
             \\master_repl_offset:0
         ;
         const role = if (self.config.replicaof != null) "slave" else "master";
-        const info = try std.fmt.allocPrint(self.allocator, format, .{role});
+        const info = try std.fmt.allocPrint(self.allocator, format, .{ role, self.config.replid });
         defer self.allocator.free(info);
         try resp.Value.write(.{ .string = info }, w);
     }
@@ -444,9 +445,10 @@ pub const Server = struct {
     }
 
     fn onPsync(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
-        _ = self;
-        _ = w;
         _ = args;
+        const res = try std.fmt.allocPrint(self.allocator, "FULLRESYNC {s} 0", .{self.config.replid});
+        defer self.allocator.free(res);
+        try resp.Value.write(.{ .simple = res }, w);
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
