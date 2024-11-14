@@ -161,6 +161,11 @@ pub const Server = struct {
         const psync_res = try resp.Value.read(self.allocator, reader);
         defer psync_res.deinit(self.allocator);
 
+        // SKIP THE RDB SNAPSHOT
+        _ = try reader.readUntilDelimiterAlloc(self.allocator, '\n', 1 << 20);
+        var snapshot = try rdb.File.read(self.allocator, reader);
+        snapshot.deinit();
+
         // PROCESS COMMANDS
         while (true) {
             const req = try resp.Request.read(self.allocator, reader);
