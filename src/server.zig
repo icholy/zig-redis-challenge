@@ -105,6 +105,8 @@ pub const Server = struct {
             self.next(r, w) catch |err| switch (err) {
                 error.EndOfStream => return,
                 error.RegisterSlave => {
+                    self.mutex.lock();
+                    defer self.mutex.unlock();
                     self.slaves.append(conn) catch |err2| {
                         std.debug.print("unable to register slave: {s}\n", .{@errorName(err2)});
                         return;
@@ -201,6 +203,7 @@ pub const Server = struct {
         const req = try resp.Request.read(self.allocator, r);
         defer req.deinit();
         std.debug.print("request: {s}, args: {any}\n", .{ req.name, req.args });
+
         try self.publish(req);
         self.handle(req, r, w) catch |err| {
             if (err == error.RegisterSlave) {
@@ -214,6 +217,8 @@ pub const Server = struct {
         if (!req.is("SET")) {
             return;
         }
+        self.mutex.lock();
+        defer self.mutex.unlock();
         for (self.slaves.items) |item| {
             const writer = item.stream.writer().any();
             try req.write(writer);
