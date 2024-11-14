@@ -536,6 +536,19 @@ pub const Server = struct {
         _ = args;
         self.mutex.lock();
         defer self.mutex.unlock();
+
+        for (self.slaves.items) |conn| {
+            const writer = conn.stream.writer().any();
+            try resp.Value.writeArrayOpen(writer, 3);
+            try resp.Value.write(.{ .string = "REPLCONF" }, writer);
+            try resp.Value.write(.{ .string = "GETACK" }, writer);
+            try resp.Value.write(.{ .string = "*" }, writer);
+
+            const reader = conn.stream.reader().any();
+            const getack_res = try resp.Value.read(self.allocator, reader);
+            defer getack_res.deinit(self.allocator);
+        }
+
         try resp.Value.write(.{ .integer = @intCast(self.slaves.items.len) }, w);
     }
 
