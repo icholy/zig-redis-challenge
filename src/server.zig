@@ -308,13 +308,11 @@ pub const Server = struct {
         while (true) {
             const req = try resp.Request.read(self.allocator, r);
             if (req.is("EXEC")) {
-                const output = std.ArrayList(resp.Value).init(self.allocator);
-                defer output.deinit();
+                try resp.Value.writeArrayOpen(w, reqs.items.len);
                 defer req.deinit();
                 for (reqs.items) |req2| {
                     try self.handle(req2, r, w);
                 }
-                try resp.Value.write(.{ .array = output.items }, w);
                 return;
             }
             errdefer req.deinit();
