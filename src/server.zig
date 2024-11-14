@@ -5,6 +5,7 @@ const command = @import("command.zig");
 const Stream = @import("stream.zig").Stream;
 const StreamID = @import("stream.zig").StreamID;
 const StreamRecord = @import("stream.zig").Record;
+const rdb = @import("rdb.zig");
 const testing = std.testing;
 
 pub const Server = struct {
@@ -141,6 +142,10 @@ pub const Server = struct {
         try resp.Value.write(.{ .string = "-1" }, writer);
         const psync_res = try resp.Value.read(self.allocator, reader);
         defer psync_res.deinit(self.allocator);
+
+        // SEND RDB
+        try writer.print("${d}\r\n", .{rdb.EMPTY.len});
+        try writer.writeAll(&rdb.EMPTY);
     }
 
     pub fn next(self: *Server, r: std.io.AnyReader, w: std.io.AnyWriter) !void {
