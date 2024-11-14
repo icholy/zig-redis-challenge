@@ -229,6 +229,13 @@ pub const Request = struct {
     pub fn is(self: Request, name: []const u8) bool {
         return util.ieql(self.name, name);
     }
+
+    pub fn at(self: Request, i: usize) Value {
+        if (self.args.len <= i) {
+            return .null_string;
+        }
+        return self.args[i];
+    }
 };
 
 test "Value.readLine" {

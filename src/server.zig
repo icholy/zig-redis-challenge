@@ -170,6 +170,17 @@ pub const Server = struct {
         while (true) {
             const req = try resp.Request.read(self.allocator, reader);
             defer req.deinit();
+
+            // HANDLE ACK
+            if (req.is("REPLCONF") and req.at(0).is("GETACK") and req.at(1).is("*")) {
+                try resp.Value.writeArrayOpen(writer, 3);
+                try resp.Value.write(.{ .string = "REPLCONF" }, writer);
+                try resp.Value.write(.{ .string = "ACK" }, writer);
+                try resp.Value.writeIntString(writer, 0);
+                continue;
+            }
+
+            // FORWARD
             var fbs = std.io.fixedBufferStream(&[_]u8{});
             try self.handle(req, fbs.reader().any(), std.io.null_writer.any());
         }
@@ -216,7 +227,7 @@ pub const Server = struct {
         if (req.is("EXEC")) return self.onExec(w);
         if (req.is("DISCARD")) return self.onDiscard(w);
         if (req.is("INFO")) return self.onInfo(w, req.args);
-        if (req.is("REPLCONF")) return self.onReplConf(w, req.args);
+        if (req.is("REPLCONF")) return self.onReplConf(w);
         if (req.is("PSYNC")) return self.onPsync(w, req.args);
         try resp.Value.writeErr(w, "ERR: unrecognised command: {s}", .{req.name});
     }
@@ -486,16 +497,7 @@ pub const Server = struct {
         try resp.Value.write(.{ .string = info }, w);
     }
 
-    fn onReplConf(_: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
-        if (args.len == 2) {
-            if (args[0].is("GETACK") and args[1].is("*")) {
-                try resp.Value.writeArrayOpen(w, 3);
-                try resp.Value.write(.{ .string = "REPLCONF" }, w);
-                try resp.Value.write(.{ .string = "ACK" }, w);
-                try resp.Value.writeIntString(w, 0);
-                return;
-            }
-        }
+    fn onReplConf(_: *Server, w: std.io.AnyWriter) !void {
         try resp.Value.write(.{ .simple = "OK" }, w);
     }
 
