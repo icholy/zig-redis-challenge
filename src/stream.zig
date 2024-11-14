@@ -90,10 +90,10 @@ pub const Stream = struct {
 
     // you must hold the mutex to call this method.
     pub fn block(self: *Stream, id: StreamID, timeout_ns: u64) !void {
-        const deadline = std.time.nanoTimestamp() + timeout_ns;
+        const deadline = @as(u64, @intCast(std.time.nanoTimestamp())) + timeout_ns;
         while (self.last.order(id) == .lt) {
-            const remaining_timeout_ns = deadline - std.time.nanoTimestamp();
-            self.condition.timedWait(&self.mutex, remaining_timeout_ns);
+            const remaining_timeout_ns: u64 = deadline - @as(u64, @intCast(std.time.nanoTimestamp()));
+            try self.condition.timedWait(&self.mutex, remaining_timeout_ns);
         }
     }
 
