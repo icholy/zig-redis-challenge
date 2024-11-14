@@ -96,6 +96,7 @@ pub const Server = struct {
         if (req.is("MULTI")) return self.onMulti(r, w, req.args);
         if (req.is("EXEC")) return self.onExec(w);
         if (req.is("DISCARD")) return self.onDiscard(w);
+        if (req.is("INFO")) return self.onInfo(w, req.args);
         try resp.Value.writeErr(w, "ERR: unrecognised command: {s}", .{req.name});
     }
 
@@ -343,6 +344,17 @@ pub const Server = struct {
 
     fn onDiscard(_: *Server, w: std.io.AnyWriter) !void {
         try resp.Value.writeErr(w, "ERR DISCARD without MULTI", .{});
+    }
+
+    fn onInfo(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
+        _ = self;
+        if (args.len != 1 or args[0] != .string) {
+            return error.InvalidArgs;
+        }
+        if (!std.mem.eql(u8, args[0].string, "replication")) {
+            return error.InvalidArgs;
+        }
+        try resp.Value.writeErr(w, "Not implemented", .{});
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
