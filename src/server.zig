@@ -91,6 +91,7 @@ pub const Server = struct {
         if (req.is("XADD")) return self.onXAdd(w, req.args);
         if (req.is("XRANGE")) return self.onXRange(w, req.args);
         if (req.is("XREAD")) return self.onXRead(w, req.args);
+        if (req.is("INCR")) return self.onIncr(w, req.args);
         try resp.Value.writeErr(w, "ERR: unrecognised command: {s}", .{req.name});
     }
 
@@ -138,17 +139,11 @@ pub const Server = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
         const key = args[0].string;
-        const entry = self.values.getEntry(key) orelse {
+        const data = self.getValueData(key) orelse {
             try resp.Value.write(.null_string, w);
             return;
         };
-        const value: Value = entry.value_ptr.*;
-        if (value.expires > 0 and std.time.milliTimestamp() > value.expires) {
-            self.values.removeByPtr(entry.key_ptr);
-            try resp.Value.write(.null_string, w);
-            return;
-        }
-        switch (value.data) {
+        switch (data) {
             .value => |v| {
                 if (v != .string) {
                     try resp.Value.writeErr(w, "only strings are supported", .{});
@@ -270,6 +265,17 @@ pub const Server = struct {
         }
     }
 
+    fn onIncr(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
+        if (args.len != 1 or args[0] != .string) {
+            return error.InvalidArgs;
+        }
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        const key = args[0].string;
+        _ = self.getValueData(key);
+        try resp.Value.writeErr(w, "Not Implemented", .{});
+    }
+
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
         // parse the command
         var cmd = try command.XAdd.parse(args, self.allocator);
@@ -368,6 +374,18 @@ pub const Server = struct {
             try outputs.append(output);
         }
         try resp.Value.write(.{ .array = outputs.items }, w);
+    }
+
+    fn getValueData(self: *Server, key: []const u8) ?ValueData {
+        const entry = self.values.getEntry(key) orelse {
+            return null;
+        };
+        const value: Value = entry.value_ptr.*;
+        if (value.expires > 0 and std.time.milliTimestamp() > value.expires) {
+            self.values.removeByPtr(entry.key_ptr);
+            return null;
+        }
+        return value.data;
     }
 
     fn getStream(self: *Server, key: []const u8, create: bool) !*Stream {
