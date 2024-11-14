@@ -268,8 +268,23 @@ pub const Server = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
         const key = args[0].string;
-        _ = self.getValueData(key);
-        try resp.Value.writeErr(w, "Not Implemented", .{});
+        const data = self.getValueData(key) orelse {
+            const key_dup = try self.allocator.dupe(u8, key);
+            errdefer self.allocator.free(key_dup);
+            try self.values.put(key, .{ .expires = 0, .data = .{ .number = 1 } });
+            try w.print(":{d}\r\n", .{1});
+            return;
+        };
+        // coerse the value to a number
+        switch (data.*) {
+            .stream => return resp.Value.writeErr(w, "ERR: cannot increment stream", .{}),
+            .string => |s| {
+                data.number = try std.fmt.parseInt(i64, s, 10);
+            },
+            .number => {},
+        }
+        data.number += 1;
+        try w.print(":{d}\r\n", .{data.number});
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
