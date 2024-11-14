@@ -354,7 +354,11 @@ pub const Server = struct {
         if (!std.mem.eql(u8, args[0].string, "replication")) {
             return error.InvalidArgs;
         }
-        try resp.Value.writeErr(w, "Not implemented", .{});
+        const info =
+            \\# Replication
+            \\role:master
+        ;
+        try resp.Value.write(.{ .string = info }, w);
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
