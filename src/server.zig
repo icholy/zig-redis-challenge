@@ -279,7 +279,8 @@ pub const Server = struct {
         switch (data.*) {
             .stream => return resp.Value.writeErr(w, "ERR: cannot increment stream", .{}),
             .string => |s| {
-                data.number = try std.fmt.parseInt(i64, s, 10);
+                data.* = .{ .number = try std.fmt.parseInt(i64, s, 10) };
+                self.allocator.free(s);
             },
             .number => {},
         }
@@ -393,6 +394,7 @@ pub const Server = struct {
         };
         const value: *Value = entry.value_ptr;
         if (value.expires > 0 and std.time.milliTimestamp() > value.expires) {
+            // TODO: de-allocate ??
             self.values.removeByPtr(entry.key_ptr);
             return null;
         }
