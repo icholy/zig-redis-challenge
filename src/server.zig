@@ -170,6 +170,7 @@ pub const Server = struct {
         if (req.is("DISCARD")) return self.onDiscard(w);
         if (req.is("INFO")) return self.onInfo(w, req.args);
         if (req.is("REPLCONF")) return self.onReplConf(w);
+        if (req.is("PSYNC")) return self.onPsync(w, req.args);
         try resp.Value.writeErr(w, "ERR: unrecognised command: {s}", .{req.name});
     }
 
@@ -440,6 +441,12 @@ pub const Server = struct {
 
     fn onReplConf(_: *Server, w: std.io.AnyWriter) !void {
         try resp.Value.write(.{ .simple = "OK" }, w);
+    }
+
+    fn onPsync(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
+        _ = self;
+        _ = w;
+        _ = args;
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
