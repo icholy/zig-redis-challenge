@@ -272,7 +272,7 @@ pub const Server = struct {
             const key_dup = try self.allocator.dupe(u8, key);
             errdefer self.allocator.free(key_dup);
             try self.values.put(key_dup, .{ .expires = 0, .data = .{ .number = 1 } });
-            try w.print(":{d}\r\n", .{1});
+            try resp.Value.write(.{ .integer = 1 }, w);
             return;
         };
         // coerse the value to a number
@@ -285,7 +285,7 @@ pub const Server = struct {
             .number => {},
         }
         data.number += 1;
-        try w.print(":{d}\r\n", .{data.number});
+        try resp.Value.write(.{ .integer = data.number }, w);
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {

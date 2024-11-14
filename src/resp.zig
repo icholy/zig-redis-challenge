@@ -10,6 +10,7 @@ pub const Value = union(enum) {
     borrowed_array: []Value,
     borrowed_string: []const u8,
     null_string,
+    integer: i64,
 
     pub fn deinit(self: Value, allocator: std.mem.Allocator) void {
         switch (self) {
@@ -18,7 +19,7 @@ pub const Value = union(enum) {
                 for (a) |v| v.deinit(allocator);
                 allocator.free(a);
             },
-            .null_string, .borrowed_array, .borrowed_string => {},
+            .null_string, .borrowed_array, .borrowed_string, .integer => {},
         }
     }
 
@@ -51,6 +52,9 @@ pub const Value = union(enum) {
             .null_string => {
                 return .null_string;
             },
+            .integer => {
+                return self.*;
+            },
             .borrowed_array, .borrowed_string => @panic("cannot call toOwned on .borrowed_array"),
         }
     }
@@ -74,6 +78,9 @@ pub const Value = union(enum) {
             },
             .@"error" => |e| {
                 try writeErr(writer, "{s}", .{e});
+            },
+            .integer => |i| {
+                try writer.print(":{d}\r\n", .{i});
             },
         }
     }
