@@ -169,6 +169,7 @@ pub const Server = struct {
         if (req.is("EXEC")) return self.onExec(w);
         if (req.is("DISCARD")) return self.onDiscard(w);
         if (req.is("INFO")) return self.onInfo(w, req.args);
+        if (req.is("REPLCONF")) return self.onReplConf(w);
         try resp.Value.writeErr(w, "ERR: unrecognised command: {s}", .{req.name});
     }
 
@@ -435,6 +436,10 @@ pub const Server = struct {
         const info = try std.fmt.allocPrint(self.allocator, format, .{role});
         defer self.allocator.free(info);
         try resp.Value.write(.{ .string = info }, w);
+    }
+
+    fn onReplConf(_: *Server, w: std.io.AnyWriter) !void {
+        try resp.Value.write(.{ .simple = "OK" }, w);
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
