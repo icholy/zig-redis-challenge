@@ -109,8 +109,13 @@ pub const Server = struct {
         const conn = try std.net.tcpConnectToHost(self.allocator, r.host, r.port);
         defer conn.close();
         const writer = conn.writer().any();
+        const reader = conn.reader().any();
+
+        // PING
         try resp.Value.writeArrayOpen(writer, 1);
         try resp.Value.write(.{ .string = "PING" }, writer);
+        const res = try resp.Value.read(self.allocator, reader);
+        defer res.deinit(self.allocator);
     }
 
     pub fn next(self: *Server, r: std.io.AnyReader, w: std.io.AnyWriter) !void {
