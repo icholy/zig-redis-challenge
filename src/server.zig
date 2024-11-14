@@ -142,10 +142,6 @@ pub const Server = struct {
         try resp.Value.write(.{ .string = "-1" }, writer);
         const psync_res = try resp.Value.read(self.allocator, reader);
         defer psync_res.deinit(self.allocator);
-
-        // SEND RDB
-        try writer.print("${d}\r\n", .{rdb.EMPTY.len});
-        try writer.writeAll(&rdb.EMPTY);
     }
 
     pub fn next(self: *Server, r: std.io.AnyReader, w: std.io.AnyWriter) !void {
@@ -454,6 +450,10 @@ pub const Server = struct {
         const res = try std.fmt.allocPrint(self.allocator, "FULLRESYNC {s} 0", .{self.config.replid});
         defer self.allocator.free(res);
         try resp.Value.write(.{ .simple = res }, w);
+
+        // SEND RDB
+        try w.print("${d}\r\n", .{rdb.EMPTY.len});
+        try w.writeAll(&rdb.EMPTY);
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
