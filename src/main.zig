@@ -76,7 +76,7 @@ pub fn main() !void {
 
     // start the replication thread
     if (config.replicaof != null) {
-        const handle = try std.Thread.spawn(.{}, Server.replicate, .{&server});
+        const handle = try std.Thread.spawn(.{}, Server.replication, .{&server});
         handle.detach();
     }
 

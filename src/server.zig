@@ -98,11 +98,18 @@ pub const Server = struct {
         }
     }
 
-    pub fn replicate(self: *Server) !void {
-        const remote = self.config.replicaof orelse {
-            return;
+    pub fn replication(self: *Server) !void {
+        const r = self.config.replicaof orelse return;
+        self.replicate(r) catch |err| {
+            std.debug.print("REPLICATION: ERR: {s}", .{@errorName(err)});
         };
-        std.debug.print("remove: {s} {d}\n", .{ remote.host, remote.port });
+    }
+
+    pub fn replicate(self: *Server, r: Config.ReplicaOf) !void {
+        const conn = try std.net.tcpConnectToHost(self.allocator, r.host, r.port);
+        defer conn.close();
+        const writer = conn.writer().any();
+        try resp.Value.write(.{ .string = "PING" }, writer);
     }
 
     pub fn next(self: *Server, r: std.io.AnyReader, w: std.io.AnyWriter) !void {
