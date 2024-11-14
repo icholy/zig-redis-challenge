@@ -64,17 +64,22 @@ pub const Server = struct {
         replid: []const u8 = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb",
     };
 
+    pub const Slave = struct {
+        conn: std.net.Server.Connection,
+        ack: bool,
+    };
+
     allocator: std.mem.Allocator,
     mutex: std.Thread.Mutex = .{},
     values: std.StringHashMap(Value),
     config: Config,
-    slaves: std.ArrayList(std.net.Server.Connection),
+    slaves: std.ArrayList(Slave),
 
     pub fn init(allocator: std.mem.Allocator, config: Config) Server {
         return .{
             .allocator = allocator,
             .values = std.StringHashMap(Value).init(allocator),
-            .slaves = std.ArrayList(std.net.Server.Connection).init(allocator),
+            .slaves = std.ArrayList(Slave).init(allocator),
             .config = config,
         };
     }
@@ -86,8 +91,8 @@ pub const Server = struct {
             entry.value_ptr.data.deinit(self.allocator);
         }
         self.values.deinit();
-        for (self.slaves.items) |conn| {
-            conn.stream.close();
+        for (self.slaves.items) |slave| {
+            slave.conn.stream.close();
         }
         self.slaves.deinit();
     }
@@ -107,11 +112,12 @@ pub const Server = struct {
                 error.RegisterSlave => {
                     self.mutex.lock();
                     defer self.mutex.unlock();
-                    self.slaves.append(conn) catch |err2| {
+                    self.slaves.append(.{ .conn = conn, .ack = true }) catch |err2| {
                         std.debug.print("unable to register slave: {s}\n", .{@errorName(err2)});
                         return;
                     };
                     slave = true;
+                    return;
                 },
                 else => {
                     std.debug.print("next error: {s}\n", .{@errorName(err)});
@@ -168,7 +174,8 @@ pub const Server = struct {
         defer psync_res.deinit(self.allocator);
 
         // SKIP THE RDB SNAPSHOT
-        _ = try reader.readUntilDelimiterAlloc(self.allocator, '\n', 1 << 20);
+        const line = try reader.readUntilDelimiterAlloc(self.allocator, '\n', 1 << 20);
+        defer self.allocator.free(line);
         var snapshot = try rdb.File.read(self.allocator, reader);
         snapshot.deinit();
 
@@ -219,9 +226,10 @@ pub const Server = struct {
         }
         self.mutex.lock();
         defer self.mutex.unlock();
-        for (self.slaves.items) |item| {
-            const writer = item.stream.writer().any();
+        for (self.slaves.items) |*slave| {
+            const writer = slave.conn.stream.writer().any();
             try req.write(writer);
+            slave.ack = false;
         }
     }
 
@@ -537,16 +545,21 @@ pub const Server = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        for (self.slaves.items) |conn| {
-            const writer = conn.stream.writer().any();
+        for (self.slaves.items) |*slave| {
+            if (slave.ack) {
+                continue;
+            }
+            const writer = slave.conn.stream.writer().any();
             try resp.Value.writeArrayOpen(writer, 3);
             try resp.Value.write(.{ .string = "REPLCONF" }, writer);
             try resp.Value.write(.{ .string = "GETACK" }, writer);
             try resp.Value.write(.{ .string = "*" }, writer);
 
-            const reader = conn.stream.reader().any();
+            const reader = slave.conn.stream.reader().any();
             const getack_res = try resp.Value.read(self.allocator, reader);
             defer getack_res.deinit(self.allocator);
+
+            slave.ack = true;
         }
 
         try resp.Value.write(.{ .integer = @intCast(self.slaves.items.len) }, w);
