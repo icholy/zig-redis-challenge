@@ -361,7 +361,13 @@ pub const Server = struct {
             stream.mutex.lock();
 
             if (cmd.block) |block| {
-                try stream.block(op.start, block * std.time.ns_per_ms);
+                stream.block(op.start, block * std.time.ns_per_ms) catch |err| {
+                    if (err != error.Timeout) {
+                        return err;
+                    }
+                    try resp.Value.write(.null_string, w);
+                    return;
+                };
             }
 
             const output = try resp.Value.initArray(self.allocator, 2);
