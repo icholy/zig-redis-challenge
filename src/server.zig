@@ -186,6 +186,7 @@ pub const Server = struct {
         while (true) {
             const req = try resp.Request.read(self.allocator, counter.any());
             defer req.deinit();
+            std.debug.print("request: {s}, args: {any}\n", .{ req.name, req.args });
 
             // HANDLE ACK
             if (req.is("REPLCONF") and req.at(0).is("GETACK") and req.at(1).is("*")) {
