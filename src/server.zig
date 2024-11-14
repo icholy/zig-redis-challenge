@@ -143,7 +143,7 @@ pub const Server = struct {
             try resp.Value.write(.null_string, w);
             return;
         };
-        switch (data) {
+        switch (data.*) {
             .string => |s| {
                 return resp.Value.write(.{ .string = s }, w);
             },
@@ -372,16 +372,16 @@ pub const Server = struct {
         try resp.Value.write(.{ .array = outputs.items }, w);
     }
 
-    fn getValueData(self: *Server, key: []const u8) ?ValueData {
+    fn getValueData(self: *Server, key: []const u8) ?*ValueData {
         const entry = self.values.getEntry(key) orelse {
             return null;
         };
-        const value: Value = entry.value_ptr.*;
+        const value: *Value = entry.value_ptr;
         if (value.expires > 0 and std.time.milliTimestamp() > value.expires) {
             self.values.removeByPtr(entry.key_ptr);
             return null;
         }
-        return value.data;
+        return &value.data;
     }
 
     fn getStream(self: *Server, key: []const u8, create: bool) !*Stream {
