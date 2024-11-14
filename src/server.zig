@@ -375,17 +375,19 @@ pub const Server = struct {
     }
 
     fn onInfo(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
-        _ = self;
         if (args.len != 1 or args[0] != .string) {
             return error.InvalidArgs;
         }
         if (!std.mem.eql(u8, args[0].string, "replication")) {
             return error.InvalidArgs;
         }
-        const info =
+        const format =
             \\# Replication
-            \\role:master
+            \\role:{s}
         ;
+        const role = if (self.config.replicaof != null) "slave" else "master";
+        const info = try std.fmt.allocPrint(self.allocator, format, .{role});
+        defer self.allocator.free(info);
         try resp.Value.write(.{ .string = info }, w);
     }
 
