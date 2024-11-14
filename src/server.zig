@@ -109,6 +109,7 @@ pub const Server = struct {
         const conn = try std.net.tcpConnectToHost(self.allocator, r.host, r.port);
         defer conn.close();
         const writer = conn.writer().any();
+        try resp.Value.writeArrayOpen(writer, 1);
         try resp.Value.write(.{ .string = "PING" }, writer);
     }
 
