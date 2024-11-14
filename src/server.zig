@@ -360,6 +360,10 @@ pub const Server = struct {
             try streams.append(stream);
             stream.mutex.lock();
 
+            if (cmd.block) |block| {
+                try stream.block(op.start, block * std.time.ns_per_ms);
+            }
+
             const output = try resp.Value.initArray(self.allocator, 2);
             errdefer output.deinit(self.allocator);
             output.array[0] = .{ .borrowed_string = op.key.string };
