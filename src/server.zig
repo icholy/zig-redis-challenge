@@ -11,11 +11,13 @@ pub const Server = struct {
     const ValueData = union(enum) {
         value: resp.Value,
         stream: *Stream,
+        number: i64,
 
         pub fn deinit(self: ValueData, allocator: std.mem.Allocator) void {
             switch (self) {
                 .value => |v| v.deinit(allocator),
                 .stream => |s| s.deinit(),
+                .number => {},
             }
         }
     };
@@ -178,6 +180,11 @@ pub const Server = struct {
                 }
                 try v.write(w);
             },
+            .number => |num| {
+                var buf: [32]u8 = undefined;
+                const n = std.fmt.formatIntBuf(&buf, num, 10, .lower, .{});
+                return resp.Value.write(.{ .string = buf[0..n] }, w);
+            },
             .stream => {
                 try resp.Value.writeErr(w, "cannot GET from stream", .{});
             },
@@ -192,6 +199,7 @@ pub const Server = struct {
             const key = entry.key_ptr.*;
             switch (entry.value_ptr.data) {
                 .value => |value| std.debug.print("VALUE {s} = {any}\n", .{ key, value }),
+                .number => |num| std.debug.print("NUMBER {s} = {d}\n", .{ key, num }),
                 .stream => |stream| {
                     std.debug.print("STREAM {s}\n", .{key});
                     var it2 = try stream.tree.iterator();
@@ -274,7 +282,7 @@ pub const Server = struct {
         defer self.mutex.unlock();
         if (self.values.get(key)) |v| {
             switch (v.data) {
-                .value => {
+                .value, .number => {
                     try resp.Value.write(.{ .simple = "string" }, w);
                 },
                 .stream => {
