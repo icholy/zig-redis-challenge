@@ -160,6 +160,14 @@ pub const Server = struct {
         try resp.Value.write(.{ .string = "-1" }, writer);
         const psync_res = try resp.Value.read(self.allocator, reader);
         defer psync_res.deinit(self.allocator);
+
+        // PROCESS COMMANDS
+        while (true) {
+            const req = try resp.Request.read(self.allocator, reader);
+            defer req.deinit();
+            var fbs = std.io.fixedBufferStream(&[_]u8{});
+            try self.handle(req, fbs.reader().any(), std.io.null_writer.any());
+        }
     }
 
     pub fn next(self: *Server, r: std.io.AnyReader, w: std.io.AnyWriter) !void {
