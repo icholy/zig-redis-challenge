@@ -9,13 +9,13 @@ const testing = std.testing;
 
 pub const Server = struct {
     const ValueData = union(enum) {
-        string: resp.Value,
+        string: []const u8,
         stream: *Stream,
         number: i64,
 
         pub fn deinit(self: ValueData, allocator: std.mem.Allocator) void {
             switch (self) {
-                .string => |v| v.deinit(allocator),
+                .string => |s| allocator.free(s),
                 .stream => |s| s.deinit(),
                 .number => {},
             }
@@ -122,7 +122,7 @@ pub const Server = struct {
             }
             const prev = try self.values.fetchPut(cmd.key, .{
                 .expires = expires,
-                .data = .{ .string = cmd.value },
+                .data = .{ .string = cmd.value.string },
             });
             if (prev) |kv| {
                 self.allocator.free(kv.key);
@@ -144,12 +144,8 @@ pub const Server = struct {
             return;
         };
         switch (data) {
-            .string => |v| {
-                if (v != .string) {
-                    try resp.Value.writeErr(w, "only strings are supported", .{});
-                    return;
-                }
-                try v.write(w);
+            .string => |s| {
+                return resp.Value.write(.{ .string = s }, w);
             },
             .number => |num| {
                 var buf: [32]u8 = undefined;
