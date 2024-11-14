@@ -145,6 +145,7 @@ pub const XRead = struct {
     };
 
     ops: []ReadOp,
+    block: ?u64,
 
     pub fn deinit(self: XRead, allocator: std.mem.Allocator) void {
         for (self.ops) |op| {
@@ -162,13 +163,19 @@ pub const XRead = struct {
                 return error.InvalidArgs;
             }
         }
-        if (!util.ieql(args[0].string, "STREAMS")) {
+        var offset: usize = 0;
+        var block_val: ?u64 = null;
+        if (util.ieql(args[offset].string, "BLOCK")) {
+            block_val = try std.fmt.parseInt(u64, args[offset + 1].string, 10);
+            offset += 2;
+        }
+        if (!util.ieql(args[offset].string, "STREAMS")) {
             return error.InvalidArgs;
         }
-        return .{ .ops = try parseOps(args[1..], allocator) };
+        return .{ .block = block_val, .ops = try parseStreams(args[offset + 1 ..], allocator) };
     }
 
-    fn parseOps(args: []resp.Value, allocator: std.mem.Allocator) ![]ReadOp {
+    fn parseStreams(args: []resp.Value, allocator: std.mem.Allocator) ![]ReadOp {
         var ops = std.ArrayList(ReadOp).init(allocator);
         defer ops.deinit();
         errdefer {
@@ -228,6 +235,7 @@ test "XRead.parse: streams with block" {
     }
     var cmd = try XRead.parse(&input, testing.allocator);
     defer cmd.deinit(testing.allocator);
+    try testing.expectEqual(@as(?u64, 1000), cmd.block);
     try testing.expectEqual(@as(usize, 1), cmd.ops.len);
     try testing.expectEqualStrings("mystream", cmd.ops[0].key.string);
     try testing.expectEqual(@as(u64, 1), cmd.ops[0].start.timestamp);
