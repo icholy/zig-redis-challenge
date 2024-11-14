@@ -530,7 +530,7 @@ pub const Server = struct {
     fn onWait(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
         _ = self;
         _ = args;
-        try resp.Value.writeIntString(w, 0);
+        try resp.Value.write(.{ .integer = 0 }, w);
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
