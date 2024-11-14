@@ -271,7 +271,7 @@ pub const Server = struct {
         const data = self.getValueData(key) orelse {
             const key_dup = try self.allocator.dupe(u8, key);
             errdefer self.allocator.free(key_dup);
-            try self.values.put(key, .{ .expires = 0, .data = .{ .number = 1 } });
+            try self.values.put(key_dup, .{ .expires = 0, .data = .{ .number = 1 } });
             try w.print(":{d}\r\n", .{1});
             return;
         };
