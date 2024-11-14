@@ -94,6 +94,7 @@ pub const Server = struct {
         if (req.is("INCR")) return self.onIncr(w, req.args);
         if (req.is("MULTI")) return self.onMulti(r, w, req.args);
         if (req.is("EXEC")) return self.onExec(w);
+        if (req.is("DISCARD")) return self.onDiscard(w);
         try resp.Value.writeErr(w, "ERR: unrecognised command: {s}", .{req.name});
     }
 
@@ -307,6 +308,11 @@ pub const Server = struct {
         }
         while (true) {
             const req = try resp.Request.read(self.allocator, r);
+            if (req.is("DISCARD")) {
+                req.deinit();
+                try resp.Value.write(.{ .simple = "OK" }, w);
+                return;
+            }
             if (req.is("EXEC")) {
                 try resp.Value.writeArrayOpen(w, reqs.items.len);
                 defer req.deinit();
@@ -323,6 +329,10 @@ pub const Server = struct {
 
     fn onExec(_: *Server, w: std.io.AnyWriter) !void {
         try resp.Value.writeErr(w, "ERR EXEC without MULTI", .{});
+    }
+
+    fn onDiscard(_: *Server, w: std.io.AnyWriter) !void {
+        try resp.Value.writeErr(w, "ERR DISCARD without MULTI", .{});
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
