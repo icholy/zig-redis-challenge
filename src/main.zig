@@ -74,6 +74,12 @@ pub fn main() !void {
         }
     }
 
+    // start the replication thread
+    if (config.replicaof != null) {
+        const handle = try std.Thread.spawn(.{}, Server.replicate, .{&server});
+        handle.detach();
+    }
+
     const addr = try net.Address.resolveIp("127.0.0.1", config.port);
     var listener = try addr.listen(.{ .reuse_address = true });
     defer listener.deinit();

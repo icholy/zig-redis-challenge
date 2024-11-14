@@ -98,6 +98,13 @@ pub const Server = struct {
         }
     }
 
+    pub fn replicate(self: *Server) !void {
+        const remote = self.config.replicaof orelse {
+            return;
+        };
+        std.debug.print("remove: {s} {d}\n", .{ remote.host, remote.port });
+    }
+
     pub fn next(self: *Server, r: std.io.AnyReader, w: std.io.AnyWriter) !void {
         const req = try resp.Request.read(self.allocator, r);
         defer req.deinit();
