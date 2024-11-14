@@ -97,7 +97,7 @@ pub const Stream = struct {
         const deadline = @as(u64, @intCast(std.time.nanoTimestamp())) + timeout_ns;
         while (self.last.order(id) == .lt) {
             if (timeout_ns == 0) {
-                try self.condition.wait(&self.mutex);
+                self.condition.wait(&self.mutex);
             } else {
                 const remaining_timeout_ns: u64 = deadline - @as(u64, @intCast(std.time.nanoTimestamp()));
                 try self.condition.timedWait(&self.mutex, remaining_timeout_ns);
