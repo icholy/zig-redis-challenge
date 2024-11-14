@@ -64,14 +64,16 @@ pub const Server = struct {
     };
 
     allocator: std.mem.Allocator,
+    mutex: std.Thread.Mutex = .{},
     values: std.StringHashMap(Value),
     config: Config,
-    mutex: std.Thread.Mutex = .{},
+    slaves: std.ArrayList(std.net.Server.Connection),
 
     pub fn init(allocator: std.mem.Allocator, config: Config) Server {
         return .{
             .allocator = allocator,
             .values = std.StringHashMap(Value).init(allocator),
+            .slaves = std.ArrayList(std.net.Server.Connection).init(allocator),
             .config = config,
         };
     }
@@ -83,15 +85,28 @@ pub const Server = struct {
             entry.value_ptr.data.deinit(self.allocator);
         }
         self.values.deinit();
+        for (self.slaves.items) |conn| {
+            conn.stream.close();
+        }
+        self.slaves.deinit();
     }
 
     pub fn serve(self: *Server, conn: std.net.Server.Connection) void {
-        defer conn.stream.close();
+        var slave = false;
+        defer {
+            if (!slave) {
+                conn.stream.close();
+            }
+        }
         const r = conn.stream.reader().any();
         const w = conn.stream.writer().any();
         while (true) {
             self.next(r, w) catch |err| switch (err) {
                 error.EndOfStream => return,
+                error.RegisterSlave => {
+                    slave = true;
+                    try self.slaves.append(conn);
+                },
                 else => {
                     std.debug.print("next error: {s}\n", .{@errorName(err)});
                     return;
@@ -149,6 +164,9 @@ pub const Server = struct {
         defer req.deinit();
         std.debug.print("request: {s}, args: {any}\n", .{ req.name, req.args });
         self.handle(req, r, w) catch |err| {
+            if (err == error.RegisterSlave) {
+                return err;
+            }
             try resp.Value.writeErr(w, "ERR: failed to process request {s}", .{@errorName(err)});
         };
     }
@@ -454,6 +472,10 @@ pub const Server = struct {
         // SEND RDB
         try w.print("${d}\r\n", .{rdb.EMPTY.len});
         try w.writeAll(&rdb.EMPTY);
+
+        // signal to break out of the request/response loop
+        // and use this connection for replication
+        return error.RegisterSlave;
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
