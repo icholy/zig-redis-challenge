@@ -9,13 +9,13 @@ const testing = std.testing;
 
 pub const Server = struct {
     const ValueData = union(enum) {
-        value: resp.Value,
+        string: resp.Value,
         stream: *Stream,
         number: i64,
 
         pub fn deinit(self: ValueData, allocator: std.mem.Allocator) void {
             switch (self) {
-                .value => |v| v.deinit(allocator),
+                .string => |v| v.deinit(allocator),
                 .stream => |s| s.deinit(),
                 .number => {},
             }
@@ -122,7 +122,7 @@ pub const Server = struct {
             }
             const prev = try self.values.fetchPut(cmd.key, .{
                 .expires = expires,
-                .data = .{ .value = cmd.value },
+                .data = .{ .string = cmd.value },
             });
             if (prev) |kv| {
                 self.allocator.free(kv.key);
@@ -144,7 +144,7 @@ pub const Server = struct {
             return;
         };
         switch (data) {
-            .value => |v| {
+            .string => |v| {
                 if (v != .string) {
                     try resp.Value.writeErr(w, "only strings are supported", .{});
                     return;
@@ -169,7 +169,7 @@ pub const Server = struct {
         while (it.next()) |entry| {
             const key = entry.key_ptr.*;
             switch (entry.value_ptr.data) {
-                .value => |value| std.debug.print("VALUE {s} = {any}\n", .{ key, value }),
+                .string => |str| std.debug.print("STRING {s} = {any}\n", .{ key, str }),
                 .number => |num| std.debug.print("NUMBER {s} = {d}\n", .{ key, num }),
                 .stream => |stream| {
                     std.debug.print("STREAM {s}\n", .{key});
@@ -253,7 +253,7 @@ pub const Server = struct {
         defer self.mutex.unlock();
         if (self.values.get(key)) |v| {
             switch (v.data) {
-                .value, .number => {
+                .string, .number => {
                     try resp.Value.write(.{ .simple = "string" }, w);
                 },
                 .stream => {

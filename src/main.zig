@@ -51,7 +51,7 @@ pub fn main() !void {
                 errdefer pair.deinit(allocator);
                 try server.values.put(pair.key, .{
                     .expires = pair.expires,
-                    .data = .{ .value = resp.Value{ .string = pair.value } },
+                    .data = .{ .string = resp.Value{ .string = pair.value } },
                 });
             }
         }
