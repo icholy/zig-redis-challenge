@@ -528,9 +528,10 @@ pub const Server = struct {
     }
 
     fn onWait(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
-        _ = self;
         _ = args;
-        try resp.Value.write(.{ .integer = 0 }, w);
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        try resp.Value.write(.{ .integer = @intCast(self.slaves.items.len) }, w);
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
