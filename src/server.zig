@@ -360,6 +360,9 @@ pub const Server = struct {
             try streams.append(stream);
             stream.mutex.lock();
 
+            // WARN: this implementation has two big flaws:
+            //  1. This can't detect when a client disconnects.
+            //  2. If the XREAD has multuple STREAMS, they all need to have data.
             if (cmd.block) |block| {
                 stream.block(op.start, block * std.time.ns_per_ms) catch |err| {
                     if (err != error.Timeout) {
