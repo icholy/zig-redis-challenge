@@ -5,6 +5,7 @@ const command = @import("command.zig");
 const Stream = @import("stream.zig").Stream;
 const StreamID = @import("stream.zig").StreamID;
 const StreamRecord = @import("stream.zig").Record;
+const CountingReader = @import("reader.zig").CountingReader;
 const rdb = @import("rdb.zig");
 const testing = std.testing;
 
@@ -169,9 +170,12 @@ pub const Server = struct {
         var snapshot = try rdb.File.read(self.allocator, reader);
         snapshot.deinit();
 
+        var n_processed: u64 = 0;
+        var counter = CountingReader.init(reader);
+
         // PROCESS COMMANDS
         while (true) {
-            const req = try resp.Request.read(self.allocator, reader);
+            const req = try resp.Request.read(self.allocator, counter.any());
             defer req.deinit();
 
             // HANDLE ACK
@@ -179,13 +183,17 @@ pub const Server = struct {
                 try resp.Value.writeArrayOpen(writer, 3);
                 try resp.Value.write(.{ .string = "REPLCONF" }, writer);
                 try resp.Value.write(.{ .string = "ACK" }, writer);
-                try resp.Value.writeIntString(writer, 0);
+                try resp.Value.writeIntString(writer, n_processed);
                 continue;
             }
 
             // FORWARD
             var fbs = std.io.fixedBufferStream(&[_]u8{});
             try self.handle(req, fbs.reader().any(), std.io.null_writer.any());
+
+            // keep track of how many bytes we've processed
+            n_processed += counter.bytes_read;
+            counter.bytes_read = 0;
         }
     }
 

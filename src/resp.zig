@@ -70,8 +70,8 @@ pub const Value = union(enum) {
         try writer.print("*{d}\r\n", .{size});
     }
 
-    pub fn writeIntString(writer: std.io.AnyWriter, i: i64) !void {
-        var buf: [20]u8 = undefined;
+    pub fn writeIntString(writer: std.io.AnyWriter, i: anytype) !void {
+        var buf: [40]u8 = undefined;
         const n = std.fmt.formatIntBuf(&buf, i, 10, .lower, .{});
         try write(.{ .string = buf[0..n] }, writer);
     }
