@@ -555,11 +555,15 @@ pub const Server = struct {
             try resp.Value.write(.{ .string = "REPLCONF" }, writer);
             try resp.Value.write(.{ .string = "GETACK" }, writer);
             try resp.Value.write(.{ .string = "*" }, writer);
+        }
 
+        for (self.slaves.items) |*slave| {
+            if (slave.ack) {
+                continue;
+            }
             const reader = slave.conn.stream.reader().any();
             const getack_res = try resp.Value.read(self.allocator, reader);
             defer getack_res.deinit(self.allocator);
-
             slave.ack = true;
         }
 
