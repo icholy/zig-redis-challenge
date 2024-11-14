@@ -354,11 +354,15 @@ pub const Server = struct {
             streams.deinit();
         }
         for (cmd.ops) |*op| {
-            op.start.sequence += 1;
-
             const stream = try self.getStream(op.key.string, false);
             try streams.append(stream);
             stream.mutex.lock();
+
+            // figure out where we're starting
+            if (op.latest) {
+                op.start = stream.last;
+            }
+            op.start.sequence += 1;
 
             // WARN: this implementation has two big flaws:
             //  1. This can't detect when a client disconnects.

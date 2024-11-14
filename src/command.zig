@@ -142,6 +142,7 @@ pub const XRead = struct {
     const ReadOp = struct {
         key: resp.Value,
         start: stream.StreamID,
+        latest: bool,
     };
 
     ops: []ReadOp,
@@ -172,7 +173,10 @@ pub const XRead = struct {
         if (!util.ieql(args[offset].string, "STREAMS")) {
             return error.InvalidArgs;
         }
-        return .{ .block = block_val, .ops = try parseStreams(args[offset + 1 ..], allocator) };
+        return .{
+            .block = block_val,
+            .ops = try parseStreams(args[offset + 1 ..], allocator),
+        };
     }
 
     fn parseStreams(args: []resp.Value, allocator: std.mem.Allocator) ![]ReadOp {
@@ -185,16 +189,25 @@ pub const XRead = struct {
         }
         const n_op = args.len / 2;
         for (0..n_op) |i| {
-            const start = try stream.StreamID.parse(args[i + n_op].string);
-            if (start.timestamp == null or start.sequence == null) {
-                return error.InvalidStreamID;
+            var latest = false;
+            const id = args[i + n_op].string;
+            var start = stream.StreamID{ .timestamp = 0, .sequence = 0 };
+            if (util.ieql(id, "$")) {
+                latest = true;
+            } else {
+                const parsed = try stream.StreamID.parse(args[i + n_op].string);
+                if (parsed.timestamp == null or parsed.sequence == null) {
+                    return error.InvalidStreamID;
+                }
+                start = .{
+                    .timestamp = parsed.timestamp.?,
+                    .sequence = parsed.sequence.?,
+                };
             }
             try ops.append(.{
                 .key = args[i].toOwned(),
-                .start = .{
-                    .timestamp = start.timestamp.?,
-                    .sequence = start.sequence.?,
-                },
+                .start = start,
+                .latest = latest,
             });
         }
         return try ops.toOwnedSlice();
