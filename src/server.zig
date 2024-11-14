@@ -28,9 +28,37 @@ pub const Server = struct {
     };
 
     pub const Config = struct {
+        pub const ReplicaOf = struct {
+            host: []const u8,
+            port: u16,
+
+            pub fn deinit(self: ReplicaOf, allocator: std.mem.Allocator) void {
+                allocator.free(self.host);
+            }
+
+            pub fn parse(allocator: std.mem.Allocator, input: []const u8) !ReplicaOf {
+                const space = std.mem.indexOf(u8, input, " ") orelse {
+                    return error.InvalidReplicaOf;
+                };
+                const port = try std.fmt.parseInt(u16, input[space + 1 ..], 10);
+                return .{
+                    .host = try allocator.dupe(u8, input[0..space]),
+                    .port = port,
+                };
+            }
+
+            test "parse" {
+                const r = try parse(testing.allocator, "localhost 3333");
+                defer r.deinit(testing.allocator);
+                try testing.expectEqual(r.port, 3333);
+                try testing.expectEqualStrings(r.host, "localhost");
+            }
+        };
+
         dir: []const u8 = "",
         dbfilename: []const u8 = "",
         port: u16 = 6379,
+        replicaof: ?ReplicaOf = null,
     };
 
     allocator: std.mem.Allocator,
