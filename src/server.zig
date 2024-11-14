@@ -120,9 +120,12 @@ pub const Server = struct {
 
     pub fn replication(self: *Server) !void {
         const r = self.config.replicaof orelse return;
-        self.replicate(r) catch |err| {
-            std.debug.print("REPLICATION: ERR: {s}", .{@errorName(err)});
-        };
+        while (true) {
+            self.replicate(r) catch |err| {
+                std.debug.print("REPLICATION: ERR: {s}", .{@errorName(err)});
+            };
+            std.time.sleep(5 * std.time.ns_per_s);
+        }
     }
 
     pub fn replicate(self: *Server, r: Config.ReplicaOf) !void {
