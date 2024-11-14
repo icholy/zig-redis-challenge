@@ -277,9 +277,12 @@ pub const Server = struct {
         };
         // coerse the value to a number
         switch (data.*) {
-            .stream => return resp.Value.writeErr(w, "ERR: cannot increment stream", .{}),
+            .stream => return resp.Value.writeErr(w, "ERR value is not an integer or out of range", .{}),
             .string => |s| {
-                data.* = .{ .number = try std.fmt.parseInt(i64, s, 10) };
+                const num = std.fmt.parseInt(i64, s, 10) catch {
+                    return resp.Value.writeErr(w, "ERR value is not an integer or out of range", .{});
+                };
+                data.* = .{ .number = num };
                 self.allocator.free(s);
             },
             .number => {},
