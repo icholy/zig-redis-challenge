@@ -31,6 +31,13 @@ pub const Value = union(enum) {
         return .{ .array = array };
     }
 
+    pub fn is(self: Value, str: []const u8) bool {
+        return switch (self) {
+            .simple, .string, .borrowed_string => |s| util.ieql(s, str),
+            else => false,
+        };
+    }
+
     pub fn toOwned(self: *Value) Value {
         switch (self.*) {
             .simple => |s| {

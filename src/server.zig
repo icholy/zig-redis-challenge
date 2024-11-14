@@ -216,7 +216,7 @@ pub const Server = struct {
         if (req.is("EXEC")) return self.onExec(w);
         if (req.is("DISCARD")) return self.onDiscard(w);
         if (req.is("INFO")) return self.onInfo(w, req.args);
-        if (req.is("REPLCONF")) return self.onReplConf(w);
+        if (req.is("REPLCONF")) return self.onReplConf(w, req.args);
         if (req.is("PSYNC")) return self.onPsync(w, req.args);
         try resp.Value.writeErr(w, "ERR: unrecognised command: {s}", .{req.name});
     }
@@ -486,7 +486,16 @@ pub const Server = struct {
         try resp.Value.write(.{ .string = info }, w);
     }
 
-    fn onReplConf(_: *Server, w: std.io.AnyWriter) !void {
+    fn onReplConf(_: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
+        if (args.len == 2) {
+            if (args[0].is("GETACK") and args[1].is("*")) {
+                try resp.Value.writeArrayOpen(w, 3);
+                try resp.Value.write(.{ .string = "REPLCONF" }, w);
+                try resp.Value.write(.{ .string = "ACK" }, w);
+                try resp.Value.writeIntString(w, 0);
+                return;
+            }
+        }
         try resp.Value.write(.{ .simple = "OK" }, w);
     }
 
