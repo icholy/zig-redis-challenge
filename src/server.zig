@@ -107,7 +107,7 @@ pub const Server = struct {
                 error.EndOfStream => return,
                 error.RegisterSlave => {
                     self.handleAcks(conn) catch |err2| {
-                        std.debug.print("slave error: {s}", .{@errorName(err2)});
+                        std.debug.print("slave error: {s}\n", .{@errorName(err2)});
                     };
                     return;
                 },
