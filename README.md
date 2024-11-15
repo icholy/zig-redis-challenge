@@ -1,3 +1,3 @@
-# WIP: Toy Redis Server
+# Toy Redis Server
 
 > Learning zig by doing codecrafter redis challenge.
