@@ -67,6 +67,7 @@ pub const Server = struct {
     pub const Slave = struct {
         conn: std.net.Server.Connection,
         ack: bool,
+        err: bool,
     };
 
     allocator: std.mem.Allocator,
@@ -121,7 +122,12 @@ pub const Server = struct {
 
     pub fn handleAcks(self: *Server, conn: std.net.Server.Connection) !void {
         const slave = try self.allocator.create(Slave);
-        slave.* = .{ .conn = conn, .ack = true };
+        slave.* = .{ .conn = conn, .ack = true, .err = false };
+        errdefer {
+            self.mutex.lock();
+            slave.err = true;
+            self.mutex.unlock();
+        }
         {
             self.mutex.lock();
             defer self.mutex.unlock();
@@ -242,6 +248,9 @@ pub const Server = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
         for (self.slaves.items) |slave| {
+            if (slave.err) {
+                continue;
+            }
             const writer = slave.conn.stream.writer().any();
             try req.write(writer);
             slave.ack = false;
@@ -568,7 +577,7 @@ pub const Server = struct {
             self.mutex.lock();
             defer self.mutex.unlock();
             for (self.slaves.items) |slave| {
-                if (slave.ack) {
+                if (slave.ack or slave.err) {
                     continue;
                 }
                 const writer = slave.conn.stream.writer().any();
@@ -585,7 +594,7 @@ pub const Server = struct {
             self.mutex.lock();
             acked = 0;
             for (self.slaves.items) |slave| {
-                if (slave.ack) {
+                if (slave.ack and !slave.err) {
                     acked += 1;
                 }
             }
