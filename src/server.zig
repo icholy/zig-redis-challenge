@@ -583,6 +583,7 @@ pub const Server = struct {
         var acked: usize = 0;
         while (acked < min_acks) {
             self.mutex.lock();
+            acked = 0;
             for (self.slaves.items) |slave| {
                 if (slave.ack) {
                     acked += 1;
