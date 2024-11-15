@@ -71,15 +71,16 @@ pub const Server = struct {
 
     allocator: std.mem.Allocator,
     mutex: std.Thread.Mutex = .{},
+    condition: std.Thread.Condition = .{},
     values: std.StringHashMap(Value),
     config: Config,
-    slaves: std.ArrayList(Slave),
+    slaves: std.ArrayList(*Slave),
 
     pub fn init(allocator: std.mem.Allocator, config: Config) Server {
         return .{
             .allocator = allocator,
             .values = std.StringHashMap(Value).init(allocator),
-            .slaves = std.ArrayList(Slave).init(allocator),
+            .slaves = std.ArrayList(*Slave).init(allocator),
             .config = config,
         };
     }
@@ -98,25 +99,16 @@ pub const Server = struct {
     }
 
     pub fn serve(self: *Server, conn: std.net.Server.Connection) void {
-        var slave = false;
-        defer {
-            if (!slave) {
-                conn.stream.close();
-            }
-        }
+        defer conn.stream.close();
         const r = conn.stream.reader().any();
         const w = conn.stream.writer().any();
         while (true) {
             self.next(r, w) catch |err| switch (err) {
                 error.EndOfStream => return,
                 error.RegisterSlave => {
-                    self.mutex.lock();
-                    defer self.mutex.unlock();
-                    self.slaves.append(.{ .conn = conn, .ack = true }) catch |err2| {
-                        std.debug.print("unable to register slave: {s}\n", .{@errorName(err2)});
-                        return;
+                    self.handleAcks(conn) catch |err2| {
+                        std.debug.print("slave error: {s}", .{@errorName(err2)});
                     };
-                    slave = true;
                     return;
                 },
                 else => {
@@ -125,6 +117,28 @@ pub const Server = struct {
                 },
             };
         }
+    }
+
+    pub fn handleAcks(self: *Server, conn: std.net.Server.Connection) !void {
+        const slave = try self.allocator.create(Slave);
+        slave.* = .{ .conn = conn, .ack = true };
+        {
+            self.mutex.lock();
+            defer self.mutex.unlock();
+            errdefer self.allocator.destroy(slave);
+            try self.slaves.append(slave);
+        }
+        const reader = conn.stream.reader().any();
+        while (true) {
+            const ack = try resp.Value.read(self.allocator, reader);
+            defer ack.deinit(self.allocator);
+            std.debug.print("ACK: {any}\n", .{ack});
+            self.mutex.lock();
+            slave.ack = true;
+            self.condition.broadcast();
+            self.mutex.unlock();
+        }
+        return;
     }
 
     pub fn replication(self: *Server) !void {
@@ -227,7 +241,7 @@ pub const Server = struct {
         }
         self.mutex.lock();
         defer self.mutex.unlock();
-        for (self.slaves.items) |*slave| {
+        for (self.slaves.items) |slave| {
             const writer = slave.conn.stream.writer().any();
             try req.write(writer);
             slave.ack = false;
@@ -542,32 +556,51 @@ pub const Server = struct {
     }
 
     fn onWait(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
-        _ = args;
-        self.mutex.lock();
-        defer self.mutex.unlock();
-
-        for (self.slaves.items) |*slave| {
-            if (slave.ack) {
-                continue;
-            }
-            const writer = slave.conn.stream.writer().any();
-            try resp.Value.writeArrayOpen(writer, 3);
-            try resp.Value.write(.{ .string = "REPLCONF" }, writer);
-            try resp.Value.write(.{ .string = "GETACK" }, writer);
-            try resp.Value.write(.{ .string = "*" }, writer);
+        if (args.len != 2 or args[0] != .string or args[1] != .string) {
+            return error.InvalidArgs;
         }
 
-        for (self.slaves.items) |*slave| {
-            if (slave.ack) {
-                continue;
+        const min_acks = try std.fmt.parseInt(usize, args[0].string, 10);
+        const timeout_ms = try std.fmt.parseInt(i64, args[1].string, 10);
+
+        // REQUEST ACKS
+        {
+            self.mutex.lock();
+            defer self.mutex.unlock();
+            for (self.slaves.items) |slave| {
+                if (slave.ack) {
+                    continue;
+                }
+                const writer = slave.conn.stream.writer().any();
+                try resp.Value.writeArrayOpen(writer, 3);
+                try resp.Value.write(.{ .string = "REPLCONF" }, writer);
+                try resp.Value.write(.{ .string = "GETACK" }, writer);
+                try resp.Value.write(.{ .string = "*" }, writer);
             }
-            const reader = slave.conn.stream.reader().any();
-            const getack_res = try resp.Value.read(self.allocator, reader);
-            defer getack_res.deinit(self.allocator);
-            slave.ack = true;
         }
 
-        try resp.Value.write(.{ .integer = @intCast(self.slaves.items.len) }, w);
+        const deadline = std.time.milliTimestamp() + timeout_ms;
+        var acked: usize = 0;
+        while (acked < min_acks) {
+            self.mutex.lock();
+            for (self.slaves.items) |slave| {
+                if (slave.ack) {
+                    acked += 1;
+                }
+            }
+            if (timeout_ms == 0) {
+                self.condition.wait(&self.mutex);
+            } else {
+                const wait_timeout_ms = deadline - std.time.milliTimestamp();
+                self.condition.timedWait(&self.mutex, @intCast(wait_timeout_ms * std.time.ns_per_ms)) catch |err| {
+                    self.mutex.unlock();
+                    if (err == error.Timeout) break;
+                    return err;
+                };
+            }
+            self.mutex.unlock();
+        }
+        try resp.Value.write(.{ .integer = @intCast(acked) }, w);
     }
 
     fn onXAdd(self: *Server, w: std.io.AnyWriter, args: []resp.Value) !void {
