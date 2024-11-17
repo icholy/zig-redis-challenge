@@ -1,7 +1,7 @@
 const std = @import("std");
 const testing = std.testing;
 const resp = @import("resp.zig");
-const RadixTree = @import("radixtree.zig").RadixTree;
+const RadixTree = @import("radixtree").RadixTree;
 
 pub const StreamID = struct {
     pub const Parsed = struct {

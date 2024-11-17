@@ -12,6 +12,13 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const radixtree_dep = b.dependency("radixtree", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    exe.root_module.addImport("radixtree", radixtree_dep.module("radixtree"));
+
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
     // step when running `zig build`).
@@ -34,14 +41,6 @@ pub fn build(b: *std.Build) void {
         run_cmd.addArgs(args);
     }
 
-    // This creates a check command that is used by the LSP
-    const exe_check = b.addExecutable(.{
-        .name = "check",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
     const check = b.step("check", "Check if main compiles");
-    check.dependOn(&exe_check.step);
+    check.dependOn(&exe.step);
 }
